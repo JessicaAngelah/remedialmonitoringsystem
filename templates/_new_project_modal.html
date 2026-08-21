@@ -1,0 +1,190 @@
+{% import "_icons.html" as icons %}
+<div class="modal-backdrop">
+  <div class="modal">
+    <form method="post" action="{{ url_for('projects.new_project') }}">
+      <div class="modal-head">
+        <span>{{ t.pm.newProject }}</span>
+        <a class="icon-btn" href="{{ close_url }}">{{ icons.icon('x', 16) }}</a>
+      </div>
+      <div class="modal-body">
+        <label>{{ t.pm.projectDebtorName }}<input name="name" placeholder="{{ t.pm.projectNamePlaceholder }}" required></label>
+        <div class="modal-grid2">
+          <label>{{ t.pm.code }}<input name="code" placeholder="{{ t.pm.codePlaceholder }}" style="text-transform:uppercase;"></label>
+          <label>{{ t.pm.category }}<input name="category" placeholder="{{ t.pm.categoryPlaceholder }}"></label>
+        </div>
+        <label>{{ t.pm.addToFolderQ }}</label>
+        <div class="folder-choice-group">
+          <label class="folder-choice-opt">
+            <input type="radio" name="folder_choice" value="manual" {{ 'checked' if not current_folder_key else '' }} onchange="updateFolderChoice()">
+            {{ t.pm.noFolder }}
+          </label>
+          <label class="folder-choice-opt">
+            <input type="radio" name="folder_choice" value="existing" {{ 'checked' if current_folder_key else '' }} onchange="updateFolderChoice()">
+            {{ t.pm.addToThisFolder if current_folder_key else t.pm.addToAFolder }}
+          </label>
+          <div id="folder-existing-field" style="{{ '' if current_folder_key else 'display:none;' }} padding-left:24px;">
+            <select name="folder" id="folder-existing-select">
+              {% if current_folder_key %}
+              <option value="{{ current_folder_key }}" selected>{{ current_folder_label }}</option>
+              {% endif %}
+              <option value="manual" {{ 'selected' if not current_folder_key else '' }}>{{ BUILTIN_FOLDERS.manual.name }}</option>
+              {% for f in CUSTOM_FOLDERS if f.id != current_folder_key %}
+              <option value="{{ f.id }}">{{ f.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <label class="folder-choice-opt">
+            <input type="radio" name="folder_choice" value="new" onchange="updateFolderChoice()">
+            {{ t.pm.createNewFolderForProject }}
+          </label>
+          <div id="folder-new-field" style="display:none; padding-left:24px;">
+            <input type="text" name="new_folder_name" id="folder-new-name" placeholder="{{ t.pm.folderNamePlaceholder }}">
+          </div>
+        </div>
+        <script>
+          function updateFolderChoice() {
+            var choice = document.querySelector('input[name="folder_choice"]:checked').value;
+            document.getElementById('folder-existing-field').style.display = choice === 'existing' ? '' : 'none';
+            document.getElementById('folder-new-field').style.display = choice === 'new' ? '' : 'none';
+          }
+        </script>
+        <label>{{ t.pm.accentColor }}</label>
+        <div class="color-row">
+          {% for c in ["#FF003C", "#D6C100", "#004BFF", "#00FFA6"] %}
+          <label class="swatch {{ 'active' if loop.first else '' }}" style="background:{{ c }}; display:inline-flex;">
+            <input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first else '' }} style="opacity:0; width:100%; height:100%; margin:0; cursor:pointer;">
+          </label>
+          {% endfor %}
+        </div>
+
+        <label style="flex-direction:row; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="is-debtor-check" name="is_debtor" style="width:auto;" onchange="document.getElementById('case-details-fields').style.display = this.checked ? 'flex' : 'none';">
+          {{ t.pm.debtorCheckbox }}
+        </label>
+
+        <div id="case-details-fields" style="display:none; flex-direction:column; gap:12px;">
+          <div class="modal-subhead">{{ t.pm.caseDetails }}</div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.pic }}<input name="pic" placeholder="{{ t.pm.picPlaceholder }}"></label>
+            <label>{{ t.pm.collector }}<input name="collector" placeholder="{{ t.pm.collectorPlaceholder }}"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.status }}
+              <select name="npl_status">
+                <option value="">{{ t.pm.chooseOption }}</option>
+                {% for opt in STATUS_OPTIONS %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+              </select>
+            </label>
+            <label>{{ t.pm.urgency }}
+              <select name="urgency">
+                <option value="">{{ t.pm.chooseOption }}</option>
+                {% for opt in URGENCY_OPTIONS %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+              </select>
+            </label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.tipe }}
+              <select name="tipe">
+                <option value="">{{ t.pm.chooseOption }}</option>
+                {% for opt in TIPE_OPTIONS %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+              </select>
+            </label>
+            <label>{{ t.pm.surveyor }}
+              <input name="surveyor" list="surveyor-list" placeholder="{{ t.pm.surveyorPlaceholder }}">
+              <datalist id="surveyor-list">{% for s in SURVEYORS %}<option value="{{ s }}">{% endfor %}</datalist>
+            </label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.objektif }}
+              <select name="objektif">
+                <option value="">{{ t.pm.chooseOption }}</option>
+                {% for opt in OBJEKTIF_OPTIONS %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+              </select>
+            </label>
+            <label>{{ t.pm.meetingStatus }}
+              <select name="meeting_status">
+                <option value="">{{ t.pm.chooseOption }}</option>
+                {% for opt in MEETING_STATUS_OPTIONS %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+              </select>
+            </label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.critical }}
+              <select name="critical">
+                <option value="">{{ t.pm.chooseOption }}</option>
+                {% for opt in CRITICAL_OPTIONS %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+              </select>
+            </label>
+            <label>{{ t.pm.rating }}
+              <select name="rating">
+                <option value="">{{ t.pm.chooseOption }}</option>
+                {% for opt in RATING_OPTIONS %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+              </select>
+            </label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.contactable }}<input name="contactable" placeholder="{{ t.pm.contactablePlaceholder }}"></label>
+            <label>{{ t.pm.loanType }}<input name="loan_type" placeholder="{{ t.pm.loanTypePlaceholder }}"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.source }}<input name="source"></label>
+            <label>{{ t.pm.jaminan }}<input name="jaminan"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.pokok }}<input type="number" step="any" name="pokok"></label>
+            <label>{{ t.pm.overdueTotal }}<input type="number" step="any" name="total_tagihan"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.collected2025 }}<input type="number" step="any" name="collected_2025"></label>
+            <label>{{ t.pm.collected2026 }}<input type="number" step="any" name="collected_2026"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.lvAgunan }}<input type="number" step="any" name="lv_agunan"></label>
+            <label>{{ t.pm.mvAgunan }}<input type="number" step="any" name="mv_agunan"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.dpd }}<input type="number" name="dpd"></label>
+            <label>{{ t.pm.dueDate }}<input type="date" name="due_date"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.woStage }}<input name="wo_stage"></label>
+            <label>{{ t.pm.woDate }}<input type="date" name="wo_date"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.auctionStatus }}<input name="auction_status"></label>
+            <label>{{ t.pm.tanggalBast }}<input type="date" name="tanggal_bast"></label>
+          </div>
+          <div class="modal-grid2">
+            <label>{{ t.pm.kol }}<input name="kol" placeholder="{{ t.pm.kolPlaceholder }}"></label>
+          </div>
+          <label>{{ t.pm.remark }}<textarea name="remark" rows="2"></textarea></label>
+          <label>{{ t.pm.planNextWeek }}<textarea name="plan_next_week" rows="2"></textarea></label>
+
+          <div class="modal-subhead">{{ t.pm.monthlyNotesHead }}</div>
+          <div id="custom-detail-list"></div>
+          <button type="button" class="add-detail-btn" onclick="addCustomDetailRow()">{{ icons.icon('plus', 13) }} {{ t.pm.addMonthlyNote }}</button>
+          <template id="custom-detail-template">
+            <div class="custom-detail-row">
+              <div class="custom-detail-fields">
+                <input name="custom_title" placeholder="{{ t.pm.monthNotePlaceholder }}">
+                <textarea name="custom_desc" rows="2" placeholder="{{ t.pm.monthNoteDescPlaceholder }}"></textarea>
+              </div>
+              <button type="button" class="icon-btn" title="Remove" onclick="this.closest('.custom-detail-row').remove()">{{ icons.icon('trash', 14) }}</button>
+            </div>
+          </template>
+          <script>
+            function addCustomDetailRow() {
+              var tpl = document.getElementById('custom-detail-template');
+              var row = tpl.content.cloneNode(true);
+              document.getElementById('custom-detail-list').appendChild(row);
+            }
+          </script>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <a class="btn btn-ghost" href="{{ close_url }}">{{ t.pm.cancel }}</a>
+        <button class="btn btn-primary" type="submit">{{ t.pm.createProject }}</button>
+      </div>
+    </form>
+  </div>
+</div>

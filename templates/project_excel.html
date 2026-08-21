@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head row-between">
+    <div>
+      <h1>{{ project.code }} · {{ project.name }}</h1>
+      <p class="muted">{{ "Edit this project's fields like a spreadsheet." if can_edit else "View this project's fields as a spreadsheet." }}</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      {% if can_edit %}
+      <span class="xl-saved-flash" id="xlSavedFlash">{{ icons.icon('check', 14) }} Saved</span>
+      <button type="button" class="btn btn-primary" id="xlSaveBtn" disabled>{{ icons.icon('check', 14) }} Save changes</button>
+      {% endif %}
+      <a class="btn btn-ghost" href="{{ url_for('projects.download_project_excel', pid=project.id) }}">{{ icons.icon('download', 15) }} Download</a>
+      <a class="btn btn-ghost" href="{{ url_for('projects.project_detail', pid=project.id) }}">{{ icons.icon('x', 15) }} Close</a>
+    </div>
+  </div>
+
+  <div class="xl-shell">
+    <div class="xl-toolbar">
+      {% if groups|length > 1 %}
+      <div class="xl-tabs" id="xlTabs" role="tablist">
+        {% for name, rows in groups %}
+        <button type="button" class="xl-tab {{ 'active' if loop.first else '' }}" data-tab="tab-{{ loop.index0 }}" role="tab">
+          <span class="xl-tab-label">{{ name }}</span>
+          <span class="xl-tab-count">{{ rows|length }}</span>
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="xl-search">
+        {{ icons.icon('search', 14) }}
+        <input type="text" id="xlSearch" placeholder="Search fields…" autocomplete="off">
+        <span class="xl-search-clear" id="xlSearchClear" style="display:none;">{{ icons.icon('x', 12) }}</span>
+      </div>
+    </div>
+
+    <div class="xl-body" id="xlBody">
+      {% set FIELD_OPTIONS = {
+        "npl_status": STATUS_OPTIONS, "urgency": URGENCY_OPTIONS, "tipe": TIPE_OPTIONS,
+        "objektif": OBJEKTIF_OPTIONS, "meeting_status": MEETING_STATUS_OPTIONS,
+        "critical": CRITICAL_OPTIONS, "rating": RATING_OPTIONS,
+      } %}
+      {% for name, rows in groups %}
+      <div class="xl-card xl-tabpanel" id="tab-{{ loop.index0 }}" style="{{ '' if loop.first else 'display:none;' }}">
+        <div class="xl-scroll">
+          <table class="xl-table">
+            <thead>
+              <tr>
+                <th class="xl-cell" style="font-weight:700;">Field</th>
+                <th class="xl-cell" style="font-weight:700;">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              {% set opts = FIELD_OPTIONS.get(row.key) %}
+              <tr class="xl-row" data-search="{{ (row.label ~ ' ' ~ row.value)|lower }}">
+                <td class="xl-cell" style="font-weight:600; color:var(--text-mute); cursor:default;">{{ row.label }}</td>
+                {% if opts %}
+                <td class="xl-cell xl-select-cell" data-key="{{ row.key }}">
+                  <select class="xl-select" {{ '' if can_edit else 'disabled' }}>
+                    <option value=""{{ ' selected' if not row.value else '' }}>—</option>
+                    {% for opt in opts %}<option value="{{ opt }}"{{ ' selected' if (row.value|string) == opt else '' }}>{{ opt }}</option>{% endfor %}
+                    {% if row.value and (row.value|string) not in opts %}<option value="{{ row.value }}" selected>{{ row.value }} (existing)</option>{% endif %}
+                  </select>
+                </td>
+                {% elif row.key == "surveyor" %}
+                <td class="xl-cell xl-input-cell" data-key="surveyor">
+                  <input class="xl-input" type="text" list="xlSurveyorList" value="{{ row.value }}" placeholder="Type or pick a name" {{ '' if can_edit else 'disabled' }}>
+                </td>
+                {% else %}
+                <td class="xl-cell" {{ 'contenteditable="true"' if can_edit else '' }} spellcheck="false" data-key="{{ row.key }}">{{ row.value }}{% if row.url %}<a class="xl-cell-link" href="{{ row.url }}" target="_blank" rel="noopener" contenteditable="false" title="Open link">{{ icons.icon('external-link', 12) }}</a>{% endif %}</td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="xl-no-results" style="display:none;">No fields match your search.</div>
+      </div>
+      {% endfor %}
+      <datalist id="xlSurveyorList">{% for s in SURVEYORS %}<option value="{{ s }}">{% endfor %}</datalist>
+    </div>
+  </div>
+</div>
+
+<script src="{{ static_v('xl-grid.js') }}"></script>
+<script>
+(function () {
+  // --- Tabs -----------------------------------------------------------
+  var tabs = document.querySelectorAll('.xl-tab');
+  var panels = document.querySelectorAll('.xl-tabpanel');
+  function activateTab(id) {
+    tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.tab === id); });
+    panels.forEach(function (p) { p.style.display = p.id === id ? '' : 'none'; });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { activateTab(t.dataset.tab); });
+  });
+
+  // --- Search -----------------------------------------------------------
+  var searchInput = document.getElementById('xlSearch');
+  var searchClear = document.getElementById('xlSearchClear');
+  searchInput.addEventListener('input', function () {
+    var q = searchInput.value.trim().toLowerCase();
+    searchClear.style.display = q ? '' : 'none';
+    var firstMatchPanel = null;
+
+    panels.forEach(function (panel) {
+      var rows = panel.querySelectorAll('.xl-row');
+      var visible = 0;
+      rows.forEach(function (row) {
+        var match = !q || row.dataset.search.indexOf(q) !== -1;
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      panel.querySelector('.xl-no-results').style.display = (q && visible === 0) ? '' : 'none';
+      var tab = document.querySelector('.xl-tab[data-tab="' + panel.id + '"]');
+      if (tab) {
+        var countEl = tab.querySelector('.xl-tab-count');
+        countEl.textContent = q ? visible : rows.length;
+        tab.classList.toggle('xl-tab-dim', !!q && visible === 0);
+      }
+      if (q && visible > 0 && !firstMatchPanel) firstMatchPanel = panel.id;
+    });
+
+    // If the active tab has no matches but another tab does, jump there.
+    if (q && firstMatchPanel) {
+      var active = document.querySelector('.xl-tab.active');
+      if (active) {
+        var activePanel = document.getElementById(active.dataset.tab);
+        var activeHasMatch = activePanel && activePanel.querySelector('.xl-row:not([style*="display: none"])');
+        if (!activeHasMatch) activateTab(firstMatchPanel);
+      }
+    }
+  });
+  searchClear.addEventListener('click', function () {
+    searchInput.value = '';
+    searchInput.dispatchEvent(new Event('input'));
+    searchInput.focus();
+  });
+})();
+</script>
+
+{% if can_edit %}
+<script>
+(function () {
+  var saveUrl = "{{ url_for('projects.save_project_excel', pid=project.id) }}";
+  var saveBtn = document.getElementById('xlSaveBtn');
+  var savedFlash = document.getElementById('xlSavedFlash');
+  var body = document.getElementById('xlBody');
+  if (!body) return;
+
+  var pending = new Map();
+
+  function cellText(cell) {
+    var input = cell.querySelector('select, input');
+    if (input) return input.value;
+    var clone = cell.cloneNode(true);
+    clone.querySelectorAll('.xl-cell-link, .xl-col-resize, .xl-row-resize').forEach(function (el) { el.remove(); });
+    return clone.textContent;
+  }
+
+  function updateSaveBtn() {
+    var n = pending.size;
+    saveBtn.disabled = n === 0;
+    saveBtn.textContent = '';
+    saveBtn.append(n > 0 ? ('Save ' + n + ' change' + (n === 1 ? '' : 's')) : 'Save changes');
+  }
+
+  function handleCellChange(e) {
+    var cell = e.target.closest ? e.target.closest('.xl-cell') : null;
+    if (!cell || !cell.classList.contains('xl-cell') || !cell.dataset.key) return;
+    cell.classList.add('xl-dirty');
+    savedFlash.classList.remove('show');
+    pending.set(cell.dataset.key, { key: cell.dataset.key, value: cellText(cell) });
+    var row = cell.closest('.xl-row');
+    if (row) row.dataset.search = row.textContent.toLowerCase();
+    updateSaveBtn();
+  }
+
+  body.addEventListener('input', handleCellChange);
+  body.addEventListener('change', handleCellChange);
+
+  body.addEventListener('keydown', function (e) {
+    var cell = e.target;
+    if (!cell.classList || !cell.classList.contains('xl-cell')) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      cell.blur();
+    } else if (e.key === 'Escape') {
+      cell.blur();
+    }
+  });
+
+  body.addEventListener('mousedown', function (e) {
+    var link = e.target.closest('.xl-cell-link');
+    if (!link) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(link.getAttribute('href'), '_blank', 'noopener');
+  });
+
+  saveBtn.addEventListener('click', function () {
+    if (pending.size === 0) return;
+    saveBtn.disabled = true;
+    var edits = Array.from(pending.values());
+    fetch(saveUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ edits: edits }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          document.querySelectorAll('.xl-cell.xl-dirty').forEach(function (c) { c.classList.remove('xl-dirty'); });
+          pending.clear();
+          updateSaveBtn();
+          savedFlash.classList.add('show');
+          setTimeout(function () { savedFlash.classList.remove('show'); }, 2500);
+        } else {
+          alert(data.error || 'Could not save changes');
+          updateSaveBtn();
+        }
+      })
+      .catch(function () {
+        alert('Could not save changes — check your connection and try again');
+        updateSaveBtn();
+      });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head row-between">
+    <div>
+      <h1>{{ record.filename }}</h1>
+      <p class="muted">Imported {{ record.uploaded_at }} by {{ record.uploaded_by }}</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="xl-saved-flash" id="xlSavedFlash">{{ icons.icon('check', 14) }} Saved</span>
+      <button type="button" class="btn btn-primary" id="xlSaveBtn" disabled>{{ icons.icon('check', 14) }} Save changes</button>
+      <a class="btn btn-ghost" href="{{ url_for('projects.download_import', import_id=record.id) }}">{{ icons.icon('download', 15) }} Download</a>
+      <a class="btn btn-ghost" href="{{ url_for('projects.projects_list') }}">{{ icons.icon('x', 15) }} Close</a>
+    </div>
+  </div>
+
+  {% if sheets %}
+  <div class="xl-shell">
+    {% if sheets|length > 1 %}
+    <div class="xl-toolbar">
+      <div class="xl-tabs" id="xlTabs" role="tablist">
+        {% for sheet in sheets %}
+        <button type="button" class="xl-tab {{ 'active' if loop.first else '' }}" data-tab="tab-{{ loop.index0 }}" role="tab">
+          <span class="xl-tab-label">{{ sheet.name }}</span>
+          <span class="xl-tab-count">{{ sheet.rows|length }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    <div class="xl-search-bar">
+      <div class="xl-search">
+        {{ icons.icon('search', 14) }}
+        <input type="text" id="xlSearch" placeholder="Search…" autocomplete="off">
+        <span class="xl-search-clear" id="xlSearchClear" style="display:none;">{{ icons.icon('x', 12) }}</span>
+      </div>
+      <div class="xl-search-nav" id="xlSearchNav" style="display:none;">
+        <button type="button" class="xl-search-nav-btn" id="xlSearchPrev" title="Previous match">{{ icons.icon('chevron-left', 14) }}</button>
+        <span class="xl-search-count" id="xlSearchCount">0 of 0</span>
+        <button type="button" class="xl-search-nav-btn" id="xlSearchNext" title="Next match">{{ icons.icon('chevron-right', 14) }}</button>
+      </div>
+    </div>
+
+    <div class="xl-body" id="xlBody">
+      {% set HEADER_OPTIONS = {
+        "urgency": URGENCY_OPTIONS, "status": STATUS_OPTIONS, "npl status": STATUS_OPTIONS,
+        "tipe": TIPE_OPTIONS, "objektif": OBJEKTIF_OPTIONS, "meeting status": MEETING_STATUS_OPTIONS,
+        "critical": CRITICAL_OPTIONS, "rating": RATING_OPTIONS,
+      } %}
+      {% for sheet in sheets %}
+      <div class="xl-card xl-tabpanel" id="tab-{{ loop.index0 }}" style="{{ '' if loop.first else 'display:none;' }}">
+        <div class="xl-scroll">
+          <table class="xl-table" data-sheet="{{ sheet.name }}">
+            <thead>
+              <tr>
+                <th class="xl-rownum">{{ sheet.header_idx + 1 }}</th>
+                {% for h in sheet.header %}
+                <th class="xl-cell {{ 'xl-merged' if (sheet.header_idx, loop.index0) in sheet.merged else '' }}" contenteditable="true" spellcheck="false"
+                    data-sheet="{{ sheet.name }}" data-row="{{ sheet.header_idx }}" data-col="{{ loop.index0 }}"
+                    {{ 'title="Merged cell in the original file"' if (sheet.header_idx, loop.index0) in sheet.merged else '' }}>{{ h }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in sheet.rows %}
+              <tr class="xl-row" data-search="{{ (row.cells|map(attribute='value')|join(' '))|lower }}">
+                <td class="xl-rownum">{{ row.idx + 1 }}</td>
+                {% for cell in row.cells %}
+                {% set h = (sheet.header[loop.index0] if loop.index0 < sheet.header|length else "")|lower|trim %}
+                {% set opts = HEADER_OPTIONS.get(h) %}
+                {% set opts_lower = opts|map("lower")|list if opts else [] %}
+                {% set is_merged = (row.idx, loop.index0) in sheet.merged %}
+                {% if opts %}
+                <td class="xl-cell xl-select-cell {{ 'xl-merged' if is_merged else '' }}" data-sheet="{{ sheet.name }}" data-row="{{ row.idx }}" data-col="{{ loop.index0 }}"
+                    {{ 'title="Merged cell in the original file"' if is_merged else '' }}>
+                  <select class="xl-select">
+                    <option value=""{{ ' selected' if not cell.value else '' }}>—</option>
+                    {% for opt in opts %}<option value="{{ opt }}"{{ ' selected' if (cell.value|string|lower) == opt|lower else '' }}>{{ opt }}</option>{% endfor %}
+                    {% if cell.value and (cell.value|string|lower) not in opts_lower %}<option value="{{ cell.value }}" selected>{{ cell.value }}</option>{% endif %}
+                  </select>
+                </td>
+                {% elif h == "surveyor" %}
+                <td class="xl-cell xl-input-cell {{ 'xl-merged' if is_merged else '' }}" data-sheet="{{ sheet.name }}" data-row="{{ row.idx }}" data-col="{{ loop.index0 }}"
+                    {{ 'title="Merged cell in the original file"' if is_merged else '' }}>
+                  <input class="xl-input" type="text" list="xlSurveyorList" value="{{ cell.value }}">
+                </td>
+                {% else %}
+                {% set grouped = cell.value|grouped_number %}
+                <td class="xl-cell {{ 'xl-merged' if is_merged else '' }} {{ 'xl-numeric' if grouped is not none else '' }}" contenteditable="true" spellcheck="false"
+                    data-sheet="{{ sheet.name }}" data-row="{{ row.idx }}" data-col="{{ loop.index0 }}"
+                    {% if grouped is not none %}data-raw="{{ cell.value }}"{% endif %}
+                    {{ 'title="Merged cell in the original file"' if is_merged else '' }}>{{ grouped if grouped is not none else cell.value }}{% if cell.url %}<a class="xl-cell-link" href="{{ cell.url }}" target="_blank" rel="noopener" contenteditable="false" title="Open link">{{ icons.icon('external-link', 11) }}</a>{% endif %}</td>
+                {% endif %}
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+      <datalist id="xlSurveyorList">{% for s in SURVEYORS %}<option value="{{ s }}">{% endfor %}</datalist>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-mini">This file has no readable data.</div>
+  {% endif %}
+</div>
+
+<script src="{{ static_v('xl-grid.js') }}"></script>
+<script>
+(function () {
+  var searchInputEl = document.getElementById('xlSearch');
+  if (!searchInputEl) return; // no data loaded — nothing to wire up
+
+  // --- Tabs -----------------------------------------------------------
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.xl-tab'));
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.xl-tabpanel'));
+  function activateTab(id) {
+    tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.tab === id); });
+    panels.forEach(function (p) { p.style.display = p.id === id ? '' : 'none'; });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { activateTab(t.dataset.tab); });
+  });
+
+  function cellValue(cell) {
+    var input = cell.querySelector('select, input');
+    if (input) return input.value;
+    var clone = cell.cloneNode(true);
+    clone.querySelectorAll('.xl-cell-link, .xl-col-resize, .xl-row-resize').forEach(function (el) { el.remove(); });
+    var text = clone.textContent.trim();
+    // Numeric cells display with thousands separators ("655,205,634") but
+    // are searched by their raw digits too, so a search for either form
+    // finds it.
+    if (cell.classList.contains('xl-numeric') && cell.dataset.raw) return text + ' ' + cell.dataset.raw;
+    return text;
+  }
+
+  // --- Search: highlights matches in place instead of hiding rows ------
+  var searchInput = document.getElementById('xlSearch');
+  var searchClear = document.getElementById('xlSearchClear');
+  var searchNav = document.getElementById('xlSearchNav');
+  var searchCount = document.getElementById('xlSearchCount');
+  var searchPrev = document.getElementById('xlSearchPrev');
+  var searchNext = document.getElementById('xlSearchNext');
+
+  var matches = [];
+  var matchIndex = -1;
+
+  function clearHighlights() {
+    document.querySelectorAll('.xl-search-hit').forEach(function (c) { c.classList.remove('xl-search-hit', 'xl-search-hit-current'); });
+    document.querySelectorAll('.xl-search-row-hit').forEach(function (r) { r.classList.remove('xl-search-row-hit'); });
+  }
+
+  function runSearch() {
+    if (!searchInput) return;
+    var q = searchInput.value.trim().toLowerCase();
+    searchClear.style.display = q ? '' : 'none';
+    clearHighlights();
+    matches = [];
+    matchIndex = -1;
+
+    if (q) {
+      panels.forEach(function (panel) {
+        var table = panel.querySelector('table.xl-table');
+        if (!table) return;
+        table.querySelectorAll('tbody .xl-row').forEach(function (row) {
+          if (row.classList.contains('xl-row-hidden')) return; // filtered out
+          var rowHit = false;
+          row.querySelectorAll('td[data-col]').forEach(function (cell) {
+            if (cellValue(cell).toLowerCase().indexOf(q) !== -1) {
+              cell.classList.add('xl-search-hit');
+              matches.push({ cell: cell });
+              rowHit = true;
+            }
+          });
+          if (rowHit) row.classList.add('xl-search-row-hit');
+        });
+      });
+    }
+
+    searchNav.style.display = q ? '' : 'none';
+    if (matches.length) {
+      goToMatch(0);
+    } else {
+      searchCount.textContent = '0 of 0';
+    }
+  }
+
+  function goToMatch(i) {
+    if (!matches.length) return;
+    if (matches[matchIndex]) matches[matchIndex].cell.classList.remove('xl-search-hit-current');
+    matchIndex = ((i % matches.length) + matches.length) % matches.length;
+    var m = matches[matchIndex];
+    m.cell.classList.add('xl-search-hit-current');
+    var panel = m.cell.closest('.xl-tabpanel');
+    if (panel && panel.style.display === 'none') activateTab(panel.id);
+    m.cell.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    searchCount.textContent = (matchIndex + 1) + ' of ' + matches.length;
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', runSearch);
+    searchClear.addEventListener('click', function () {
+      searchInput.value = '';
+      runSearch();
+      searchInput.focus();
+    });
+    searchPrev.addEventListener('click', function () { goToMatch(matchIndex - 1); });
+    searchNext.addEventListener('click', function () { goToMatch(matchIndex + 1); });
+    searchInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        goToMatch(e.shiftKey ? matchIndex - 1 : matchIndex + 1);
+      }
+    });
+  }
+})();
+</script>
+
+<script>
+(function () {
+  var saveUrl = "{{ url_for('projects.save_import_edits', import_id=record.id) }}";
+  var saveBtn = document.getElementById('xlSaveBtn');
+  var savedFlash = document.getElementById('xlSavedFlash');
+  var body = document.getElementById('xlBody');
+  if (!body) return;
+
+  var pending = new Map();
+
+  function keyFor(cell) {
+    return cell.dataset.sheet + '|' + cell.dataset.row + '|' + cell.dataset.col;
+  }
+
+  function cellText(cell) {
+    var input = cell.querySelector('select, input');
+    if (input) return input.value;
+    var clone = cell.cloneNode(true);
+    clone.querySelectorAll('.xl-cell-link, .xl-col-resize, .xl-row-resize').forEach(function (el) { el.remove(); });
+    var text = clone.textContent;
+    // Safety net: a numeric cell should always save its plain digits, not
+    // the comma-grouped display text. The focus/blur handlers below swap
+    // the visible text to raw digits while the cell is actually being
+    // edited, so this normally never even fires — but if focus is lost in
+    // some unusual way (e.g. programmatic blur) before that swap runs,
+    // don't let a stray "655,205,634" reach the server.
+    if (cell.classList.contains('xl-numeric') && /^-?[\d,]+(\.\d+)?$/.test(text.trim())) {
+      return text.trim().replace(/,/g, '');
+    }
+    return text;
+  }
+
+  // Numeric cells show "655,205,634" for readability but should be edited
+  // as plain digits — swap to the raw value the moment editing starts, and
+  // back to the grouped display once editing ends.
+  function isPlainNumber(s) { return /^-?\d+(\.\d+)?$/.test(s); }
+  function groupDigits(s) {
+    var neg = s.charAt(0) === '-' ? '-' : '';
+    if (neg) s = s.slice(1);
+    var parts = s.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return neg + parts.join('.');
+  }
+  body.addEventListener('focusin', function (e) {
+    var cell = e.target.closest ? e.target.closest('.xl-numeric') : null;
+    if (!cell || !cell.isContentEditable) return;
+    if (cell.dataset.raw !== undefined) cell.textContent = cell.dataset.raw;
+  });
+  body.addEventListener('focusout', function (e) {
+    var cell = e.target.closest ? e.target.closest('.xl-numeric') : null;
+    if (!cell || !cell.isContentEditable) return;
+    var raw = cell.textContent.trim();
+    if (isPlainNumber(raw)) {
+      cell.dataset.raw = raw;
+      cell.textContent = groupDigits(raw);
+    } else {
+      // No longer a clean number (user typed something else in) — stop
+      // treating it as one rather than silently reformatting nonsense.
+      cell.classList.remove('xl-numeric');
+      delete cell.dataset.raw;
+    }
+  });
+
+  function updateSaveBtn() {
+    var n = pending.size;
+    saveBtn.disabled = n === 0;
+    saveBtn.textContent = '';
+    saveBtn.append(n > 0 ? ('Save ' + n + ' change' + (n === 1 ? '' : 's')) : 'Save changes');
+  }
+
+  function handleCellChange(e) {
+    var cell = e.target.closest ? e.target.closest('.xl-cell') : null;
+    if (!cell || !cell.classList.contains('xl-cell')) return;
+    cell.classList.add('xl-dirty');
+    savedFlash.classList.remove('show');
+    pending.set(keyFor(cell), {
+      sheet: cell.dataset.sheet,
+      row: parseInt(cell.dataset.row, 10),
+      col: parseInt(cell.dataset.col, 10),
+      value: cellText(cell),
+    });
+    var row = cell.closest('.xl-row');
+    if (row) row.dataset.search = row.textContent.toLowerCase();
+    updateSaveBtn();
+  }
+
+  body.addEventListener('input', handleCellChange);
+  body.addEventListener('change', handleCellChange);
+
+  body.addEventListener('keydown', function (e) {
+    var cell = e.target;
+    if (!cell.classList || !cell.classList.contains('xl-cell')) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      cell.blur();
+      var table = cell.closest('table');
+      var col = cell.dataset.col;
+      var rows = Array.prototype.slice.call(table.querySelectorAll('tr'));
+      var thisRow = cell.closest('tr');
+      var idx = rows.indexOf(thisRow);
+      var nextRow = rows[idx + 1];
+      if (nextRow) {
+        var next = nextRow.querySelector('.xl-cell[data-col="' + col + '"]');
+        if (next) { next.focus(); moveCaretToEnd(next); }
+      }
+    } else if (e.key === 'Escape') {
+      cell.blur();
+    }
+  });
+
+  body.addEventListener('mousedown', function (e) {
+    var link = e.target.closest('.xl-cell-link');
+    if (!link) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(link.getAttribute('href'), '_blank', 'noopener');
+  });
+
+  function moveCaretToEnd(el) {
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  saveBtn.addEventListener('click', function () {
+    if (pending.size === 0) return;
+    saveBtn.disabled = true;
+    var edits = Array.from(pending.values());
+    fetch(saveUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ edits: edits }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          document.querySelectorAll('.xl-cell.xl-dirty').forEach(function (c) { c.classList.remove('xl-dirty'); });
+          pending.clear();
+          updateSaveBtn();
+          savedFlash.classList.add('show');
+          setTimeout(function () { savedFlash.classList.remove('show'); }, 2500);
+        } else {
+          alert(data.error || 'Could not save changes');
+          updateSaveBtn();
+        }
+      })
+      .catch(function () {
+        alert('Could not save changes — check your connection and try again');
+        updateSaveBtn();
+      });
+  });
+})();
+</script>
+{% endblock %}

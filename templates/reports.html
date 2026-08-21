@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head row-between">
+    <div><h1>Reports</h1><p class="muted">Analytics and performance insights across all remediation projects.</p></div>
+    <a class="btn btn-primary" href="{{ url_for('reports.export_csv') }}">{{ icons.icon('download', 15) }} Export CSV</a>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-value mono">{{ by_project|length }}</div><div class="kpi-label">Projects</div></div>
+    <div class="kpi-card"><div class="kpi-value mono">{{ total_tasks }}</div><div class="kpi-label">Tasks</div></div>
+    <div class="kpi-card"><div class="kpi-value mono" style="color:#00FFA6;">{{ done }}</div><div class="kpi-label">Completed</div></div>
+    <div class="kpi-card"><div class="kpi-value mono">{{ progress_pct }}%</div><div class="kpi-label">Progress</div></div>
+    <div class="kpi-card"><div class="kpi-value mono" style="color:#FF003C;">{{ overdue }}</div><div class="kpi-label">Overdue</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Staff Productivity Overview</div>
+    <table class="task-table">
+      <thead><tr><th>Staff</th><th>Tasks</th><th>Done</th><th>Overdue</th><th>Completion</th></tr></thead>
+      <tbody>
+        {% for r in by_staff %}
+        <tr>
+          <td class="task-title-cell"><div class="row-gap-sm"><span class="avatar" style="width:20px;height:20px;font-size:8px;">{{ r.name | initials }}</span>{{ r.name }}</div></td>
+          <td class="mono">{{ r.total }}</td>
+          <td class="mono">{{ r.done }}</td>
+          <td class="mono {{ 'text-red' if r.overdue else '' }}">{{ r.overdue }}</td>
+          <td style="min-width:140px;">
+            <div class="row-gap-sm">
+              <div class="pbar-track" style="flex:1;"><div class="pbar-fill" style="width:{{ r.pct }}%; background:var(--accent);"></div></div>
+              <span class="muted small">{{ r.pct }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Monthly Task Trends</div>
+    <div class="staff-bars">
+      {% for m in monthly_trends %}
+      <div class="staff-row" style="grid-template-columns:70px 1fr 70px;">
+        <span class="staff-name">{{ m.label }}</span>
+        <div class="staff-track"><div class="staff-fill" style="width:{{ (m.total / max_month) * 100 }}%;"></div></div>
+        <span class="muted small">{{ m.done }}/{{ m.total }} done</span>
+      </div>
+      {% else %}
+      <div class="empty-mini">No tasks to trend yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Tasks per Project</div>
+    <table class="task-table">
+      <thead><tr><th>Project</th><th>Tasks</th><th>Done</th><th>Overdue</th><th>Progress</th></tr></thead>
+      <tbody>
+        {% for r in by_project %}
+        <tr>
+          <td><span class="dot" style="background:{{ r.project.color }};"></span> {{ r.project.name }}</td>
+          <td class="mono">{{ r.total }}</td>
+          <td class="mono">{{ r.done }}</td>
+          <td class="mono {{ 'text-red' if r.overdue else '' }}">{{ r.overdue }}</td>
+          <td style="min-width:140px;"><div class="pbar-track"><div class="pbar-fill" style="width:{{ r.pct }}%; background:{{ r.project.color }};"></div></div></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

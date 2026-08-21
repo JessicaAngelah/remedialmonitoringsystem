@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <a class="link-back" href="{{ url_for('projects.project_detail', pid=project.id) }}">&larr; {{ project.name }}</a>
+
+  <div class="view-head row-between">
+    <div>
+      <div class="detail-breadcrumb mono muted small">
+        Project: {{ project.name }} &nbsp;·&nbsp; Type: {{ task.type }}
+      </div>
+      <h1>{{ task.title }}</h1>
+      <div class="row-gap-sm" style="margin-top:4px;">
+        <span class="badge {{ STATUS_META[task.status].cls }}">{{ STATUS_META[task.status].label }}</span>
+        <span class="pill {{ PRIORITY_META[task.priority].cls }}">{{ PRIORITY_META[task.priority].label }}</span>
+        {% if is_overdue_task %}<span class="pill" style="background:rgba(185,74,61,0.14); color:var(--red);">Overdue</span>{% endif %}
+      </div>
+    </div>
+    {% if can_manage %}
+    <div class="row-gap">
+      <form method="post" action="{{ url_for('tasks.notify_task', tid=task.id) }}">
+        <input type="hidden" name="redirect_to" value="{{ url_for('tasks.task_detail', tid=task.id) }}">
+        <button class="btn btn-ghost" type="submit" title="Send a reminder to {{ task.assignee or 'the assignee' }}">{{ icons.icon('bell', 15) }} Notify assignee</button>
+      </form>
+      <form method="post" action="{{ url_for('tasks.delete_task', tid=task.id) }}" onsubmit="return confirm('Delete this task? This can\'t be undone.');">
+        <input type="hidden" name="redirect_to" value="{{ url_for('projects.project_detail', pid=project.id) }}">
+        <button class="btn btn-ghost" type="submit">{{ icons.icon('trash', 15) }} Delete task</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="task-detail-grid">
+    <div class="card">
+      <div class="card-title">Task Details</div>
+      <form method="post" action="{{ url_for('tasks.update_task_detail', tid=task.id) }}" class="detail-form">
+        <label>Title
+          <input type="text" name="title" value="{{ task.title }}" {{ 'disabled' if not can_edit_task(task) else '' }} required>
+        </label>
+
+        <div class="modal-grid2">
+          <label>Project
+            <select name="projectId" {{ 'disabled' if not can_edit_task(task) else '' }}>
+              {% for p in PROJECTS %}<option value="{{ p.id }}" {{ 'selected' if p.id == task.projectId else '' }}>{{ p.name }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>Type
+            <input type="text" name="type" value="{{ task.type }}" {{ 'disabled' if not can_edit_task(task) else '' }}>
+          </label>
+        </div>
+
+        <div class="modal-grid2">
+          <label>Status
+            <select name="status" {{ 'disabled' if not can_edit_task(task) else '' }}>
+              {% for k, v in STATUS_META.items() %}
+              <option value="{{ k }}" {{ 'selected' if k == task.status else '' }}>{{ v.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Priority
+            <select name="priority" {{ 'disabled' if not can_edit_task(task) else '' }}>
+              {% for k, v in PRIORITY_META.items() %}
+              <option value="{{ k }}" {{ 'selected' if k == task.priority else '' }}>{{ v.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <label>Assigned To
+          <select name="assignee" {{ 'disabled' if not can_edit_task(task) else '' }}>
+            <option value="" {{ 'selected' if not task.assignee else '' }}>Unassigned</option>
+            {% for s in ASSIGNEES %}<option value="{{ s }}" {{ 'selected' if s == task.assignee else '' }}>{{ s }}</option>{% endfor %}
+          </select>
+        </label>
+
+        <div class="modal-grid2">
+          <label>Start Date<input type="date" name="startDate" value="{{ task.startDate }}" {{ 'disabled' if not can_edit_task(task) else '' }}></label>
+          <label>Due Date<input type="date" name="dueDate" value="{{ task.dueDate }}" {{ 'disabled' if not can_edit_task(task) else '' }}></label>
+        </div>
+
+        <label>Progress ({{ task.progress }}%)
+          <input type="range" name="progress" min="0" max="100" step="5" value="{{ task.progress }}" {{ 'disabled' if not can_edit_task(task) else '' }}>
+        </label>
+
+        <label>Notes
+          <textarea name="notes" rows="4" placeholder="Add context or status notes for this task…" {{ 'disabled' if not can_edit_task(task) else '' }}>{{ task.notes }}</textarea>
+        </label>
+
+        {% if can_edit_task(task) %}
+        <div class="row-gap" style="justify-content:flex-end;">
+          <button class="btn btn-primary" type="submit">Save changes</button>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Documents</div>
+      {% if can_edit_task(task) %}
+      <form method="post" action="{{ url_for('tasks.upload_attachment', tid=task.id) }}" enctype="multipart/form-data" class="row-gap" style="margin-bottom:12px;">
+        <label class="btn btn-ghost" style="cursor:pointer;">
+          {{ icons.icon('upload', 15) }} Upload document
+          <input type="file" name="file" onchange="this.form.submit()" style="display:none;">
+        </label>
+      </form>
+      {% endif %}
+      <div class="file-list">
+        {% for a in attachments %}
+        <div class="file-row">
+          {{ icons.icon('reports', 15) }}
+          <div class="file-info">
+            <a class="file-name" href="{{ url_for('tasks.download_attachment', tid=task.id, aid=a.id) }}">{{ a.name }}</a>
+            <div class="muted small">{{ (a.size / 1024) | round(1) }} KB · uploaded by {{ a.uploadedBy }} · {{ a.time }}</div>
+          </div>
+          {% if can_edit_task(task) %}
+          <form method="post" action="{{ url_for('tasks.delete_attachment', tid=task.id, aid=a.id) }}" onsubmit="return confirm('Remove this file?');">
+            <button class="icon-btn" type="submit" title="Remove">{{ icons.icon('trash', 14) }}</button>
+          </form>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-mini">No documents uploaded yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Activity &amp; Comments</div>
+    <form method="post" action="{{ url_for('tasks.add_comment', tid=task.id) }}" class="comment-form">
+      <textarea name="text" rows="2" placeholder="Add a comment…" required></textarea>
+      <button class="btn btn-primary" type="submit">Post comment</button>
+    </form>
+    <div class="comment-list">
+      {% for c in comments %}
+      <div class="comment-row">
+        <span class="avatar" style="width:26px;height:26px;font-size:10px;">{{ c.author | initials }}</span>
+        <div class="comment-body">
+          <div class="comment-head"><span class="comment-author">{{ c.author }}</span><span class="muted small">{{ c.time }}</span></div>
+          <div class="comment-text">{{ c.text }}</div>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-mini">No comments yet — be the first to add one.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

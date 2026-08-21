@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head row-between">
+    <div>
+      <a class="back-link" href="{{ url_for('projects.projects_list') }}">{{ icons.icon('chevron-left', 14) }} All folders</a>
+      <h1>{{ folder_label }}</h1>
+      <p class="muted">Projects and tasks in this folder.</p>
+    </div>
+    <div class="row-gap">
+      {% if import_id %}
+      <a class="btn btn-ghost" href="{{ url_for('projects.view_import', import_id=import_id) }}">{{ icons.icon('eye', 15) }} View excel</a>
+      {% endif %}
+      {% if can_manage %}
+      <a class="btn btn-primary" href="{{ url_for('projects.folder_detail', folder_key=folder_key, modal='new-project') }}">{{ icons.icon('plus', 15) }} New project</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <form class="toolbar" method="get" action="{{ url_for('projects.folder_detail', folder_key=folder_key) }}">
+    <div class="search-box">
+      {{ icons.icon('search', 15) }}
+      <input type="text" name="q" placeholder="Search projects by name, code, or category" value="{{ q }}">
+    </div>
+    <select name="status" onchange="this.form.submit()">
+      {% for key, label in STATUS_FILTERS %}
+      <option value="{{ key }}" {{ 'selected' if f_status == key else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="scope" value="{{ f_scope }}">
+    <button type="submit" class="btn btn-ghost">Search</button>
+    <div class="layout-toggle">
+      <a class="{{ 'active' if f_scope == 'mine' else '' }}" href="{{ url_for('projects.folder_detail', folder_key=folder_key, q=q, status=f_status, scope='mine') }}">My projects</a>
+      <a class="{{ 'active' if f_scope == 'all' else '' }}" href="{{ url_for('projects.folder_detail', folder_key=folder_key, q=q, status=f_status, scope='all') }}">All projects</a>
+    </div>
+  </form>
+
+  <div class="proj-grid">
+    {% for c in cards %}
+    <a class="proj-card" href="{{ url_for('projects.project_detail', pid=c.project.id) }}" style="--cat: {{ c.project.color }};">
+      <div class="proj-tab"></div>
+      <div class="proj-card-top">
+        <span class="proj-code mono">{{ c.project.code }}</span>
+        <span class="proj-cat">{{ c.project.category }}</span>
+      </div>
+      <div class="proj-name">{{ c.project.name }}</div>
+      {% if c.project.debtor %}
+      <div class="proj-debtor-meta">
+        {% if c.project.npl_status %}
+        <span class="pill {{ 'pr-high' if c.project.urgency == 'High' else ('pr-medium' if c.project.urgency == 'Medium' else 'pr-low') }}">{{ c.project.npl_status }}</span>
+        {% endif %}
+        {% if c.project.total_tagihan is not none %}<span class="mono">{{ c.project.total_tagihan | fmt_money }}</span>{% endif %}
+        {% if c.project.dpd is not none %}<span class="muted">DPD {{ c.project.dpd }}</span>{% endif %}
+        {% if c.project.pic %}<span class="muted">PIC {{ c.project.pic }}</span>{% endif %}
+      </div>
+      {% endif %}
+      <div class="pbar-track"><div class="pbar-fill" style="width:{{ c.pct }}%; background:{{ c.project.color }};"></div></div>
+      <div class="proj-stats">
+        <span>{{ c.pct }}%</span>
+        <span class="muted">{{ c.total }} tasks</span>
+        <span class="muted">{{ c.done }} done</span>
+        {% if c.overdue > 0 %}<span class="proj-overdue">{{ c.overdue }} overdue</span>{% endif %}
+      </div>
+    </a>
+    {% else %}
+    <div class="empty-mini">No projects match these filters.</div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if modal == 'new-project' %}
+  {% with close_url = url_for('projects.folder_detail', folder_key=folder_key), current_folder_key = folder_key, current_folder_label = folder_label %}
+    {% include "_new_project_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head row-between">
+    <div>
+      <h1>{{ t.admin }}</h1>
+      <p class="muted">Add or remove accounts, and view or reset passwords.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('admin.admin_view', modal='new-user') }}">{{ icons.icon('plus', 15) }} New user</a>
+  </div>
+
+  <div class="card table-card">
+    <table class="task-table">
+      <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Password</th><th></th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="task-title-cell"><div class="row-gap-sm"><span class="avatar" style="width:22px;height:22px;font-size:9px;">{{ u.name | initials }}</span>{{ u.name }}</div></td>
+          <td class="mono">
+            <form method="post" action="{{ url_for('admin.update_user', uid=u.id) }}" class="inline-edit-form">
+              <input type="text" name="username" value="{{ u.username }}" class="inline-edit-input" aria-label="Username">
+              <button type="submit" class="icon-btn" title="Save username">{{ icons.icon('check', 13) }}</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('admin.update_user', uid=u.id) }}" onchange="this.submit()">
+              <select class="status-select" name="role" aria-label="Role">
+                <option value="Staff" {{ 'selected' if u.role == 'Staff' else '' }}>Staff</option>
+                <option value="Manager" {{ 'selected' if u.role == 'Manager' else '' }}>Manager</option>
+                <option value="Administrator" {{ 'selected' if u.role == 'Administrator' else '' }}>Administrator</option>
+              </select>
+            </form>
+          </td>
+          <td>
+            <div class="pwd-cell">
+              <input type="checkbox" id="pwd-eye-{{ u.id }}" class="pwd-toggle-checkbox">
+              <label for="pwd-eye-{{ u.id }}" class="icon-btn pwd-eye-btn" title="Show/hide password">{{ icons.icon('eye', 13) }}</label>
+              <span class="mono small pwd-masked">••••••••</span>
+              <span class="mono small pwd-plain">{{ u.password }}</span>
+            </div>
+            <details style="margin-top:6px;">
+              <summary class="link-back" style="display:inline-flex; align-items:center; gap:5px;">{{ icons.icon('key', 13) }} Change password</summary>
+              <form method="post" action="{{ url_for('admin.change_password', uid=u.id) }}" class="row-gap" style="margin-top:8px;">
+                <input type="text" name="password" placeholder="New password" style="border:1px solid var(--border); border-radius:7px; padding:6px 8px; font-size:12px; background:var(--surface); color:var(--text); font-family:inherit; width:140px;">
+                <button type="submit" class="btn btn-ghost" style="padding:6px 10px;">{{ icons.icon('key', 13) }} Change</button>
+              </form>
+            </details>
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('admin.delete_user', uid=u.id) }}" onsubmit="return confirm('Remove {{ u.name }}?');">
+              <button type="submit" class="icon-btn" title="Remove user">{{ icons.icon('trash', 15) }}</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty-mini">No users yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if modal == 'new-user' %}
+<div class="modal-backdrop">
+  <div class="modal">
+    <form method="post" action="{{ url_for('admin.new_user') }}">
+      <div class="modal-head">
+        <span>New user</span>
+        <a class="icon-btn" href="{{ url_for('admin.admin_view') }}">{{ icons.icon('x', 16) }}</a>
+      </div>
+      <div class="modal-body">
+        <label>Full name<input name="name" placeholder="e.g. Dewi Lestari" required></label>
+        <div class="modal-grid2">
+          <label>Username<input name="username" placeholder="e.g. dewi" required></label>
+          <label>Password<input name="password" placeholder="Set a password" required></label>
+        </div>
+        <label>Role
+          <select name="role">
+            <option value="Staff">Staff</option>
+            <option value="Manager">Manager</option>
+            <option value="Administrator">Administrator</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <a class="btn btn-ghost" href="{{ url_for('admin.admin_view') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Add user</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

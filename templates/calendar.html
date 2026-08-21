@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head"><h1>Calendar</h1><p class="muted">View all tasks and deadlines in calendar format.</p></div>
+  <div class="grid-cal">
+    <div class="card">
+      <div class="cal-nav row-between">
+        <a class="btn btn-ghost btn-icon" href="{{ url_for('calendar.calendar_view', year=prev_year, month=prev_month) }}" aria-label="Previous month">
+          {{ icons.icon('chevron-left', 15) }}
+        </a>
+        <details class="cal-jump">
+          <summary class="cal-month-label cal-jump-trigger" aria-label="Jump to a specific date">
+            {{ month_label }} {{ icons.icon('calendar', 14) }}
+          </summary>
+          <form class="cal-jump-panel" method="get" action="{{ url_for('calendar.calendar_view') }}">
+            <div class="cal-jump-title">Jump to date</div>
+            <div class="cal-jump-row">
+              <select name="month" aria-label="Month">
+                {% for i in range(1, 13) %}
+                <option value="{{ i }}" {{ 'selected' if i == month else '' }}>{{ MONTH_NAMES[i - 1] }}</option>
+                {% endfor %}
+              </select>
+              <select name="day" aria-label="Day">
+                {% for d in range(1, days_in_month + 1) %}
+                <option value="{{ d }}" {{ 'selected' if d == selected_day else '' }}>{{ d }}</option>
+                {% endfor %}
+              </select>
+              <select name="year" aria-label="Year">
+                {% for y in range(today.year - 5, today.year + 6) %}
+                <option value="{{ y }}" {{ 'selected' if y == year else '' }}>{{ y }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="submit" class="btn btn-ghost cal-jump-go">Go</button>
+          </form>
+        </details>
+        <a class="btn btn-ghost btn-icon" href="{{ url_for('calendar.calendar_view', year=next_year, month=next_month) }}" aria-label="Next month">
+          {{ icons.icon('chevron-right', 15) }}
+        </a>
+      </div>
+      <div class="cal-weekdays">
+        {% for d in ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] %}<div>{{ d }}</div>{% endfor %}
+      </div>
+      <div class="cal-grid">
+        {% for day in cells %}
+          {% if day is none %}
+          <div class="cal-cell empty"></div>
+          {% else %}
+          <a class="cal-cell {{ 'today' if day == today_day else '' }} {{ 'selected' if selected_day == day else '' }}" href="{{ url_for('calendar.calendar_view', year=year, month=month, day=day) }}">
+            <span class="cal-day-num mono">{{ day }}</span>
+            {% for tk in day_dots.get(day, [])[:2] %}
+            <div class="cal-day-summary" title="{{ tk.title }}">{{ tk.title | truncate(13, True, '…') }}</div>
+            {% endfor %}
+            <div class="cal-dots">
+              {% for tk in day_dots.get(day, []) %}
+              <span class="cal-dot" style="background:{{ project_of(tk.projectId).color }};"></span>
+              {% endfor %}
+            </div>
+          </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">{{ (selected_day ~ ' ' ~ month_label) if selected_day else 'Select a day' }}</div>
+      <div class="day-task-list">
+        {% if selected_tasks|length == 0 %}
+        <div class="empty-mini">No tasks due this day.</div>
+        {% endif %}
+        {% for tk in selected_tasks %}
+        {% set p = project_of(tk.projectId) %}
+        <div class="day-task-row">
+          <span class="dot" style="background:{{ p.color }};"></span>
+          <div>
+            <div class="day-task-title">{{ tk.title }}</div>
+            <div class="muted small">{{ p.name }} · {{ tk.assignee }}</div>
+          </div>
+          <span class="badge {{ STATUS_META[tk.status].cls }}">{{ STATUS_META[tk.status].label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Keep the "day" options honest as the picker's month/year change,
+  // so e.g. picking February never leaves "30" selectable.
+  var panel = document.querySelector('.cal-jump-panel');
+  if (!panel) return;
+  var monthSel = panel.querySelector('select[name="month"]');
+  var daySel = panel.querySelector('select[name="day"]');
+  var yearSelect = panel.querySelector('select[name="year"]');
+
+  function daysInMonth(month, year) {
+    return new Date(year, month, 0).getDate();
+  }
+
+  function syncDayOptions() {
+    var month = parseInt(monthSel.value, 10);
+    var year = parseInt(yearSelect.value, 10);
+    var max = daysInMonth(month, year);
+    var current = parseInt(daySel.value, 10);
+    var frag = document.createDocumentFragment();
+    for (var d = 1; d <= max; d++) {
+      var opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      if (d === current) opt.selected = true;
+      frag.appendChild(opt);
+    }
+    daySel.innerHTML = '';
+    daySel.appendChild(frag);
+    if (current > max) daySel.value = String(max);
+  }
+
+  monthSel.addEventListener('change', syncDayOptions);
+  yearSelect.addEventListener('change', syncDayOptions);
+})();
+</script>
+{% endblock %}

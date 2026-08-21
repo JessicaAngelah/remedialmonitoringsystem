@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head row-between">
+    <div>
+      <h1>Tasks</h1>
+      <p class="muted">View and manage all remedial tasks — {{ filtered_count }} of {{ total }} shown</p>
+    </div>
+    {% if can_manage %}
+    <div class="row-gap">
+      <a class="btn btn-ghost" href="{{ url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout=layout, modal='import-tasks') }}">{{ icons.icon('upload', 15) }} Import Excel</a>
+      <a class="btn btn-ghost" href="{{ url_for('tasks.export_tasks_excel', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort) }}">{{ icons.icon('download', 15) }} Download Excel</a>
+      <a class="btn btn-primary" href="{{ url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout=layout, modal='new-task') }}">{{ icons.icon('plus', 15) }} New task</a>
+    </div>
+    {% else %}
+    <div class="row-gap">
+      <a class="btn btn-ghost" href="{{ url_for('tasks.export_tasks_excel', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort) }}">{{ icons.icon('download', 15) }} Download Excel</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <form class="toolbar" method="get" action="{{ url_for('tasks.tasks_view') }}">
+    <input type="hidden" name="layout" value="{{ layout }}">
+    <div class="search-box">
+      {{ icons.icon('search', 15) }}
+      <input type="text" name="q" placeholder="Search tasks" value="{{ q }}">
+    </div>
+    <select name="project" onchange="this.form.submit()">
+      <option value="all" {{ 'selected' if f_project == 'all' else '' }}>All projects</option>
+      {% for p in PROJECTS %}<option value="{{ p.id }}" {{ 'selected' if f_project == p.id else '' }}>{{ p.name }}</option>{% endfor %}
+    </select>
+    <select name="assignee" onchange="this.form.submit()">
+      <option value="all" {{ 'selected' if f_assignee == 'all' else '' }}>All assignees</option>
+      {% for s in ASSIGNEES %}<option value="{{ s }}" {{ 'selected' if f_assignee == s else '' }}>{{ s }}</option>{% endfor %}
+    </select>
+    <select name="priority" onchange="this.form.submit()">
+      <option value="all" {{ 'selected' if f_priority == 'all' else '' }}>All priorities</option>
+      <option value="overdue" {{ 'selected' if f_priority == 'overdue' else '' }}>Overdue</option>
+      {% for k, v in PRIORITY_META.items() %}<option value="{{ k }}" {{ 'selected' if f_priority == k else '' }}>{{ v.label }}</option>{% endfor %}
+    </select>
+    <select name="sort" onchange="this.form.submit()">
+      <option value="default" {{ 'selected' if sort == 'default' else '' }}>Sort: Default</option>
+      <option value="az" {{ 'selected' if sort == 'az' else '' }}>Title A–Z</option>
+      <option value="newest" {{ 'selected' if sort == 'newest' else '' }}>Newest to oldest</option>
+      <option value="deadline" {{ 'selected' if sort == 'deadline' else '' }}>Nearest deadline</option>
+    </select>
+    <button type="submit" class="btn btn-ghost">Filter</button>
+    <div class="layout-toggle">
+      <a class="{{ 'active' if layout == 'table' else '' }}" href="{{ url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout='table') }}">{{ icons.icon('table', 15) }}</a>
+      <a class="{{ 'active' if layout == 'kanban' else '' }}" href="{{ url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout='kanban') }}">{{ icons.icon('grid', 15) }}</a>
+    </div>
+  </form>
+
+  {% if layout == 'table' %}
+  <div class="card table-card">
+    <table class="task-table">
+      <thead><tr><th>Task</th><th>Project</th><th>Assignee</th><th>Priority</th><th>Due</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="{{ 'row-overdue' if r.overdue else '' }}">
+          <td class="task-title-cell"><a class="task-title-link" href="{{ url_for('tasks.task_detail', tid=r.task.id) }}">{{ r.task.title }}</a></td>
+          <td><span class="dot" style="background:{{ r.project.color }};"></span> {{ r.project.name }}</td>
+          <td><div class="row-gap-sm"><span class="avatar" style="width:20px;height:20px;font-size:8px;">{{ r.task.assignee | initials }}</span>{{ r.task.assignee }}</div></td>
+          <td><span class="pill {{ PRIORITY_META[r.task.priority].cls }}">{{ PRIORITY_META[r.task.priority].label }}</span></td>
+          <td class="mono {{ 'text-red' if r.overdue else '' }}">{{ r.task.dueDate | fmt_date }}</td>
+          <td>
+            {% if can_edit_task(r.task) %}
+            <form method="post" action="{{ url_for('tasks.update_task_status', tid=r.task.id) }}" onchange="this.submit()">
+              <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+              <select class="status-select" name="status">
+                {% for k, v in STATUS_META.items() %}
+                <option value="{{ k }}" {{ 'selected' if k == r.task.status else '' }}>{{ v.label }}</option>
+                {% endfor %}
+              </select>
+            </form>
+            {% else %}
+            <span class="badge {{ STATUS_META[r.task.status].cls }}">{{ STATUS_META[r.task.status].label }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="row-gap-sm">
+              {% if can_edit_task(r.task) %}
+              <a class="icon-btn" href="{{ url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout=layout, modal='edit-task', edit_id=r.task.id) }}" title="Edit task">{{ icons.icon('edit', 14) }}</a>
+              {% endif %}
+              {% if can_manage %}
+              <form method="post" action="{{ url_for('tasks.notify_task', tid=r.task.id) }}">
+                <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+                <button class="icon-btn" type="submit" title="Notify {{ r.task.assignee or 'assignee' }}">{{ icons.icon('bell', 14) }}</button>
+              </form>
+              <form method="post" action="{{ url_for('tasks.delete_task', tid=r.task.id) }}" onsubmit="return confirm('Delete this task?');">
+                <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+                <button class="icon-btn" type="submit" title="Delete task">{{ icons.icon('trash', 14) }}</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty-mini">No tasks match these filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="kanban">
+    {% for col in kanban_cols %}
+    <div class="kanban-col">
+      <div class="kanban-col-head">
+        <span class="badge {{ col.meta.cls }}">{{ col.meta.label }}</span>
+        <span class="muted">{{ col.tasks|length }}</span>
+      </div>
+      <div class="kanban-col-body">
+        {% for r in col.tasks %}
+        <div class="kanban-card">
+          <div class="kanban-card-top">
+            <span class="dot" style="background:{{ r.project.color }};"></span>
+            <span class="mono muted small">{{ r.project.code }}</span>
+          </div>
+          <a class="kanban-card-title" href="{{ url_for('tasks.task_detail', tid=r.task.id) }}">{{ r.task.title }}</a>
+          <div class="kanban-card-foot">
+            <span class="pill {{ PRIORITY_META[r.task.priority].cls }}">{{ PRIORITY_META[r.task.priority].label }}</span>
+            <span class="avatar" style="width:20px;height:20px;font-size:8px;">{{ r.task.assignee | initials }}</span>
+          </div>
+          <div class="mono small {{ 'text-red' if r.overdue else 'muted' }}">{{ r.task.dueDate | fmt_date }}</div>
+          {% if can_edit_task(r.task) %}
+          <form method="post" action="{{ url_for('tasks.update_task_status', tid=r.task.id) }}" onchange="this.submit()" style="margin-top:6px;">
+            <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+            <select class="status-select" name="status" style="width:100%;">
+              {% for k, v in STATUS_META.items() %}
+              <option value="{{ k }}" {{ 'selected' if k == r.task.status else '' }}>{{ v.label }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          {% else %}
+          <span class="badge {{ STATUS_META[r.task.status].cls }}" style="margin-top:6px; display:inline-block;">{{ STATUS_META[r.task.status].label }}</span>
+          {% endif %}
+          {% if can_manage or can_edit_task(r.task) %}
+          <div class="row-gap-sm" style="margin-top:4px; justify-content:flex-end;">
+            {% if can_edit_task(r.task) %}
+            <a class="icon-btn" href="{{ url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout=layout, modal='edit-task', edit_id=r.task.id) }}" title="Edit task">{{ icons.icon('edit', 14) }}</a>
+            {% endif %}
+            {% if can_manage %}
+            <form method="post" action="{{ url_for('tasks.notify_task', tid=r.task.id) }}">
+              <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+              <button class="icon-btn" type="submit" title="Notify {{ r.task.assignee or 'assignee' }}">{{ icons.icon('bell', 14) }}</button>
+            </form>
+            <form method="post" action="{{ url_for('tasks.delete_task', tid=r.task.id) }}" onsubmit="return confirm('Delete this task?');">
+              <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+              <button class="icon-btn" type="submit" title="Delete task">{{ icons.icon('trash', 14) }}</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% if modal == 'new-task' %}
+  {% with close_url = url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout=layout),
+          redirect_to = url_for('tasks.tasks_view'), default_project_id = (PROJECTS | map(attribute='id') | first | default('')) %}
+    {% include "_new_task_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% if modal == 'edit-task' and edit_task %}
+  {% with close_url = url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout=layout),
+          redirect_to = url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout=layout) %}
+    {% include "_edit_task_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% if modal == 'import-tasks' %}
+  {% with close_url = url_for('tasks.tasks_view', q=q, project=f_project, assignee=f_assignee, priority=f_priority, sort=sort, layout=layout) %}
+    {% include "_import_tasks_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% endblock %}

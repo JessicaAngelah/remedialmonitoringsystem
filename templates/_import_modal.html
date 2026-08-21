@@ -1,0 +1,74 @@
+{% import "_icons.html" as icons %}
+<div class="modal-backdrop">
+  <div class="modal">
+    <form method="post" action="{{ url_for('projects.import_projects') }}" enctype="multipart/form-data">
+      <div class="modal-head">
+        <span>Import Excel</span>
+        <a class="icon-btn" href="{{ close_url }}">{{ icons.icon('x', 16) }}</a>
+      </div>
+      <div class="modal-body">
+        <label>What are you importing?</label>
+        <div class="import-type-row">
+          <label class="import-type-card active">
+            <input type="radio" name="kind" value="master" checked>
+            <span class="import-type-title">Master data</span>
+            <span class="import-type-desc">Full project / debtor list — .xlsx or .csv</span>
+          </label>
+          <label class="import-type-card">
+            <input type="radio" name="kind" value="weekly">
+            <span class="import-type-title">Weekly update</span>
+            <span class="import-type-desc">Refresh tasks from the weekly report — .xlsx</span>
+          </label>
+          <label class="import-type-card">
+            <input type="radio" name="kind" value="single">
+            <span class="import-type-title">Single case</span>
+            <span class="import-type-desc">Update just one debtor — paste a row or upload its excel</span>
+          </label>
+        </div>
+        <div id="import-file-field">
+          <label>File<input type="file" name="file" id="import-file-input" accept=".xlsx,.csv" required></label>
+        </div>
+        <div id="import-single-fields" style="display:none">
+          <label>Workstream
+            <select name="workstream">
+              {% for value, label in SINGLE_CASE_WORKSTREAMS %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Upload this case's excel (.xlsx)
+            <input type="file" name="single_file" id="import-single-file-input" accept=".xlsx">
+          </label>
+          <div class="import-single-or">— or —</div>
+          <label>Paste the case row instead
+            <textarea name="paste_text" rows="6" placeholder="Paste from Excel — include the header row (No, Debtor, Overdue Amount, ...) plus the one debtor row below it."></textarea>
+          </label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <a class="btn btn-ghost" href="{{ close_url }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{{ icons.icon('upload', 15) }} Import</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var cards = document.querySelectorAll('.import-type-card');
+  var fileInput = document.getElementById('import-file-input');
+  var fileField = document.getElementById('import-file-field');
+  var singleFields = document.getElementById('import-single-fields');
+  cards.forEach(function (card) {
+    var radio = card.querySelector('input[type="radio"]');
+    radio.addEventListener('change', function () {
+      cards.forEach(function (c) { c.classList.remove('active'); });
+      card.classList.add('active');
+      var isSingle = radio.value === 'single';
+      fileField.style.display = isSingle ? 'none' : '';
+      singleFields.style.display = isSingle ? '' : 'none';
+      fileInput.required = !isSingle;
+      fileInput.setAttribute('accept', radio.value === 'weekly' ? '.xlsx' : '.xlsx,.csv');
+    });
+  });
+})();
+</script>

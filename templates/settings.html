@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="view">
+  <div class="view-head"><h1>Settings</h1><p class="muted">Local demo preferences — nothing here leaves your browser.</p></div>
+
+  <div class="card">
+    <div class="card-title">Role (demo switcher)</div>
+    <p class="muted small" style="margin-bottom:12px;">
+      Switching roles changes what actions are available across the app, matching the permission model.
+    </p>
+    <div class="role-options">
+      {% for r in ["Administrator", "Manager", "Staff"] %}
+      <form method="post" action="{{ url_for('settings.set_role') }}">
+        <input type="hidden" name="role" value="{{ r }}">
+        <button type="submit" class="role-opt {{ 'active' if role == r else '' }}" style="width:100%;">
+          <div class="role-opt-name">{{ r }}</div>
+          <div class="muted small">
+            {% if r == 'Administrator' %}Full access, including user management.{% endif %}
+            {% if r == 'Manager' %}Create and assign projects and tasks.{% endif %}
+            {% if r == 'Staff' %}Update only the tasks assigned to you.{% endif %}
+          </div>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+    {% if role == 'Staff' %}
+    <div class="settings-row" style="border-top:1px solid var(--border); margin-top:12px;">
+      <span>Signed in as</span>
+      <form method="post" action="{{ url_for('settings.set_staff_name') }}">
+        <select name="staff_name" onchange="this.form.submit()">
+          {% for s in STAFF %}<option value="{{ s }}" {{ 'selected' if staff_name == s else '' }}>{{ s }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+    <p class="muted small">Determines which tasks and history entries a Staff session sees.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-title">Appearance &amp; language</div>
+    <div class="settings-row">
+      <span>Dark mode</span>
+      <form method="post" action="{{ url_for('core.toggle_dark') }}">
+        <button class="switch {{ 'on' if dark else '' }}" type="submit"><span class="knob"></span></button>
+      </form>
+    </div>
+    <div class="settings-row">
+      <span>Language</span>
+      <form method="post" action="{{ url_for('settings.settings_set_lang') }}">
+        <select name="lang" onchange="this.form.submit()">
+          <option value="en" {{ 'selected' if lang == 'en' else '' }}>English</option>
+          <option value="id" {{ 'selected' if lang == 'id' else '' }}>Bahasa Indonesia</option>
+        </select>
+      </form>
+    </div>
+    <p class="muted small" style="margin-top:8px;">
+      Bahasa Indonesia currently covers navigation and dashboard labels — full translation coming soon.
+    </p>
+  </div>
+
+  {% if can_admin %}
+  <div class="card">
+    <div class="card-title">User management</div>
+    <p class="muted small" style="margin-bottom:10px;">Admin-only. Add or remove accounts, and view or change passwords.</p>
+    <a class="btn btn-ghost" href="{{ url_for('admin.admin_view') }}">Go to Admin</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

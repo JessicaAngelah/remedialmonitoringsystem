@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <a class="link-back" href="{{ url_for('projects.projects_list') }}">&larr; All projects</a>
+  <div class="view-head row-between">
+    <div>
+      <div class="proj-head-code mono" style="color:{{ project.color }};">{{ project.code }} · {{ project.category }}</div>
+      <h1>{{ project.name }}</h1>
+    </div>
+    {% if can_manage or can_edit_project(project) %}
+    <div class="row-gap">
+      {% if can_edit_project(project) %}
+      <a class="btn btn-ghost" href="{{ url_for('projects.project_detail', pid=project.id, modal='edit-project') }}">{{ icons.icon('settings', 15) }} Edit</a>
+      {% endif %}
+      <a class="btn btn-ghost" href="{{ url_for('projects.view_project_excel', pid=project.id) }}">{{ icons.icon('file-spreadsheet', 15) }} View/Edit Excel</a>
+      <a class="btn btn-ghost" href="{{ url_for('projects.download_project_excel', pid=project.id) }}">{{ icons.icon('download', 15) }} Download Excel</a>
+      {% if can_manage %}
+      <form method="post" action="{{ url_for('projects.notify_project', pid=project.id) }}">
+        <input type="hidden" name="redirect_to" value="{{ url_for('projects.project_detail', pid=project.id) }}">
+        <button class="btn btn-ghost" type="submit" title="Send a reminder to {{ project.pic or project.collector or 'the PIC' }}">{{ icons.icon('bell', 15) }} Notify assignee</button>
+      </form>
+      <a class="btn btn-primary" href="{{ url_for('projects.project_detail', pid=project.id, modal='new-task') }}">{{ icons.icon('plus', 15) }} Add task</a>
+      <form method="post" action="{{ url_for('projects.delete_project', pid=project.id) }}" onsubmit="return confirm('Delete this project and all its tasks?');">
+        <button class="btn btn-ghost" type="submit">{{ icons.icon('trash', 15) }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-title">Project Overview</div>
+    <div class="proj-overview-progress">
+      <div class="row-between">
+        <span class="muted small">Overall Progress</span>
+        <span class="proj-overview-pct">{{ pct }}%</span>
+      </div>
+      <div class="pbar-track"><div class="pbar-fill" style="width:{{ pct }}%; background:{{ project.color }};"></div></div>
+    </div>
+    <div class="kpi-row" style="margin-top:16px; margin-bottom:0;">
+      <div class="kpi-card"><div class="kpi-value">{{ ptotal }}</div><div class="kpi-label">Total Tasks</div></div>
+      <div class="kpi-card"><div class="kpi-value">{{ pdone }}</div><div class="kpi-label">Completed</div></div>
+      <div class="kpi-card"><div class="kpi-value">{{ ptotal - pdone }}</div><div class="kpi-label">Remaining</div></div>
+    </div>
+  </div>
+
+  {% if project.debtor %}
+  <div class="card">
+    <div class="card-title row-between">
+      <span>Case Details</span>
+      {% if can_edit_project(project) %}
+      <a class="btn btn-ghost btn-icon" href="{{ url_for('projects.project_detail', pid=project.id, modal='edit-project') }}" title="Edit case details">{{ icons.icon('settings', 14) }}</a>
+      {% endif %}
+    </div>
+    <div class="kv-grid">
+      <div class="kv-item"><span class="kv-label">Status</span><span class="kv-value">{{ project.npl_status or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Urgency</span><span class="kv-value">{{ project.urgency or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Contactable</span><span class="kv-value">{{ project.contactable or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Type / Source</span><span class="kv-value">{{ project.loan_type or "—" }}{% if project.source %} · {{ project.source }}{% endif %}</span></div>
+      <div class="kv-item"><span class="kv-label">Collector</span><span class="kv-value">{{ project.collector or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">PIC</span><span class="kv-value">{{ project.pic or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Pokok</span><span class="kv-value mono">{{ project.pokok | fmt_money }}</span></div>
+      <div class="kv-item"><span class="kv-label">Total Tagihan</span><span class="kv-value mono">{{ project.total_tagihan | fmt_money }}</span></div>
+      <div class="kv-item"><span class="kv-label">Collected 2025</span><span class="kv-value mono">{{ project.collected_2025 | fmt_money }}</span></div>
+      <div class="kv-item"><span class="kv-label">Collected 2026</span><span class="kv-value mono">{{ project.collected_2026 | fmt_money }}</span></div>
+      <div class="kv-item"><span class="kv-label">LV / MV Agunan</span><span class="kv-value mono">{{ project.lv_agunan | fmt_money }} / {{ project.mv_agunan | fmt_money }}</span></div>
+      <div class="kv-item"><span class="kv-label">Jaminan</span><span class="kv-value">{{ project.jaminan or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">DPD</span><span class="kv-value">{{ project.dpd if project.dpd is not none else "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Due Date</span><span class="kv-value">{{ project.due_date | fmt_date if project.due_date else "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">WO Stage</span><span class="kv-value">{{ project.wo_stage or "—" }}{% if project.wo_date %} ({{ project.wo_date | fmt_date }}){% endif %}</span></div>
+      <div class="kv-item"><span class="kv-label">Kol</span><span class="kv-value">{{ project.coll or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Auction Status</span><span class="kv-value">{{ project.auction_status or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Tanggal BAST</span><span class="kv-value">{{ project.tanggal_bast | fmt_date if project.tanggal_bast else "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Tipe</span><span class="kv-value">{{ project.tipe or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Surveyor</span><span class="kv-value">{{ project.surveyor or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Objektif</span><span class="kv-value">{{ project.objektif or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Meeting Status</span><span class="kv-value">{{ project.meeting_status or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Critical</span><span class="kv-value">{{ project.critical or "—" }}</span></div>
+      <div class="kv-item"><span class="kv-label">Rating</span><span class="kv-value">{{ project.rating or "—" }}</span></div>
+    </div>
+    {% if project.plan_next_week %}
+    <div style="margin-top:14px;">
+      <span class="kv-label">Plan Next Week</span>
+      <div class="kv-value" style="margin-top:3px;">{{ project.plan_next_week }}</div>
+    </div>
+    {% endif %}
+    {% if project.remark %}
+    <div style="margin-top:14px;">
+      <span class="kv-label">Remark</span>
+      <div class="kv-value" style="margin-top:3px;">{{ project.remark }}</div>
+    </div>
+    {% endif %}
+    {% if project.profiling or project.doc_credit %}
+    <div class="kv-grid" style="margin-top:14px;">
+      {% if project.profiling %}
+      <div class="kv-item">
+        <span class="kv-label">Profiling</span>
+        <span class="kv-value">
+          {% if project.profiling_url %}
+          <a href="{{ project.profiling_url }}" target="_blank" rel="noopener">{{ project.profiling }}</a>
+          {% else %}
+          {{ project.profiling }}
+          {% endif %}
+        </span>
+      </div>
+      {% endif %}
+      {% if project.doc_credit %}
+      <div class="kv-item">
+        <span class="kv-label">Doc Credit</span>
+        <span class="kv-value">
+          {% if project.doc_credit_url %}
+          <a href="{{ project.doc_credit_url }}" target="_blank" rel="noopener">{{ project.doc_credit }}</a>
+          {% else %}
+          {{ project.doc_credit }}
+          {% endif %}
+        </span>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if project.custom_details %}
+    <div class="custom-details-list">
+      {% for d in project.custom_details %}
+      <div style="margin-top:14px;">
+        <span class="kv-label">{{ d.title or "Detail" }}</span>
+        <div class="kv-value" style="margin-top:3px;">{{ d.description or "—" }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="main-task-title-row">
+    <span class="card-title" style="margin-bottom:0;">Tasks</span>
+  </div>
+  <div class="card">
+    <div class="sub-list sub-list-flat">
+      {% for tk in tasks %}
+      <div class="sub-row">
+        <a class="sub-title" href="{{ url_for('tasks.task_detail', tid=tk.id) }}">{{ tk.title }}</a>
+        <span class="pill {{ PRIORITY_META[tk.priority].cls }}">{{ PRIORITY_META[tk.priority].label }}</span>
+        <span class="mono muted sub-date">{{ tk.dueDate | fmt_date }}</span>
+        <span class="avatar" style="width:22px;height:22px;font-size:8.8px;">{{ tk.assignee | initials }}</span>
+        {% if can_edit_task(tk) %}
+        <form method="post" action="{{ url_for('tasks.update_task_status', tid=tk.id) }}" onchange="this.submit()">
+          <input type="hidden" name="redirect_to" value="{{ url_for('projects.project_detail', pid=project.id) }}">
+          <select class="status-select" name="status">
+            {% for k, v in STATUS_META.items() %}
+            <option value="{{ k }}" {{ 'selected' if k == tk.status else '' }}>{{ v.label }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        {% else %}
+        <span class="badge {{ STATUS_META[tk.status].cls }}">{{ STATUS_META[tk.status].label }}</span>
+        {% endif %}
+        {% if can_edit_task(tk) %}
+        <a class="icon-btn" href="{{ url_for('projects.project_detail', pid=project.id, modal='edit-task', edit_id=tk.id) }}" title="Edit task">{{ icons.icon('edit', 14) }}</a>
+        {% endif %}
+        {% if can_manage %}
+        <form method="post" action="{{ url_for('tasks.delete_task', tid=tk.id) }}" onsubmit="return confirm('Delete this task?');">
+          <input type="hidden" name="redirect_to" value="{{ url_for('projects.project_detail', pid=project.id) }}">
+          <button class="icon-btn" type="submit" title="Delete task">{{ icons.icon('trash', 14) }}</button>
+        </form>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="empty-mini">No tasks yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% if modal == 'new-task' %}
+  {% with close_url = url_for('projects.project_detail', pid=project.id), redirect_to = url_for('projects.project_detail', pid=project.id), default_project_id = project.id %}
+    {% include "_new_task_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% if modal == 'edit-project' %}
+  {% with close_url = url_for('projects.project_detail', pid=project.id) %}
+    {% include "_edit_project_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% if modal == 'edit-task' and edit_task %}
+  {% with close_url = url_for('projects.project_detail', pid=project.id),
+          redirect_to = url_for('projects.project_detail', pid=project.id) %}
+    {% include "_edit_task_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head">
+    <h1>{{ t.dashboard }}</h1>
+    <p class="muted">{{ t.welcomeManager if can_manage else t.welcome }}</p>
+  </div>
+
+  <div class="alerts-grid">
+    <div class="alert-card alert-red">
+      <div class="alert-head">{{ icons.icon('alert', 16) }} {{ overdue_rows|length }} {{ t.overdueTasks }}</div>
+      {% if overdue_rows %}
+      <div class="alert-list">
+        <div class="scroll-rows" id="overdue-rows">
+        {% for r in overdue_rows %}
+        <div class="alert-row">
+          <span class="dot" style="background: {{ r.project.color }};"></span>
+          <span class="alert-title">{{ r.task.title }}</span>
+          <span class="alert-meta">{{ r.days }} day{{ 's' if r.days != 1 else '' }} overdue</span>
+        </div>
+        {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="alert-empty">{{ icons.icon('check', 16) }} You're all caught up — no overdue tasks.</div>
+      {% endif %}
+    </div>
+
+    <div class="alert-card alert-amber">
+      <div class="alert-head">{{ icons.icon('clock', 16) }} {{ due_today|length }} {{ t.dueToday }}</div>
+      {% if due_today %}
+      <div class="alert-list">
+        <div class="scroll-rows" id="due-today-rows">
+        {% for tk in due_today %}
+        <div class="alert-row">
+          <span class="alert-title">{{ tk.title }}</span>
+          <span class="alert-meta"><span class="avatar" style="width:20px;height:20px;font-size:8px;">{{ tk.assignee | initials }}</span></span>
+        </div>
+        {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="alert-empty">{{ icons.icon('check', 16) }} Nothing due today.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-value mono">{{ projects|length }}</div><div class="kpi-label">{{ t.totalProjects }}</div></div>
+    <div class="kpi-card"><div class="kpi-value mono" style="color:#00FFA6;">{{ done }}</div><div class="kpi-label">{{ t.completed }}</div></div>
+    <div class="kpi-card"><div class="kpi-value mono" style="color:#004BFF;">{{ in_progress }}</div><div class="kpi-label">{{ t.inProgress }}</div></div>
+    <div class="kpi-card"><div class="kpi-value mono" style="color:#FF003C;">{{ overdue_count }}</div><div class="kpi-label">{{ t.overdue }}</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">{{ t.projectProgress }}</div>
+    <div class="proj-progress-list">
+      <div class="scroll-rows">
+      {% for pp in project_progress %}
+      <div class="ppr {{ 'ppr-pinned' if pp.pinned else '' }}">
+        {% if can_manage %}
+        <form method="post" action="{{ url_for('projects.toggle_pin', pid=pp.project.id) }}" class="ppr-pin-form">
+          <button type="submit" class="icon-btn ppr-pin-btn {{ 'active' if pp.pinned else '' }}" title="{{ 'Unpin' if pp.pinned else 'Pin to top' }}">{{ icons.icon('pin', 14) }}</button>
+        </form>
+        {% elif pp.pinned %}
+        <span class="ppr-pin-btn active" title="Pinned">{{ icons.icon('pin', 14) }}</span>
+        {% endif %}
+        <a class="ppr-link" href="{{ url_for('projects.project_detail', pid=pp.project.id) }}">
+          <div class="ppr-top">
+            <span>{{ pp.project.name }}{% if pp.almost_done %} <span class="badge st-done">Almost done</span>{% endif %}</span>
+            <span class="muted">{{ pp.done }}/{{ pp.total }} · {{ pp.pct }}%</span>
+          </div>
+          <div class="pbar-track"><div class="pbar-fill" style="width:{{ pp.pct }}%; background:{{ pp.project.color }};"></div></div>
+        </a>
+      </div>
+      {% else %}
+      <div class="empty-mini">No projects yet.</div>
+      {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">{{ t.statusDist }}</div>
+      <div class="donut-wrap">
+        <svg viewBox="0 0 180 180" width="180" height="180" class="donut-svg">
+          <circle cx="90" cy="90" r="70" fill="none" stroke="var(--surface-2)" stroke-width="24"/>
+          <g transform="rotate(-90 90 90)">
+            {% for seg in donut_segments %}
+            {% if seg.value > 0 %}
+            <circle cx="90" cy="90" r="70" fill="none" stroke="{{ seg.color }}" stroke-width="24" class="donut-seg"
+              stroke-dasharray="{{ seg.dasharray }}" stroke-dashoffset="{{ seg.dashoffset }}" stroke-linecap="round">
+              <title>{{ seg.label }}: {{ seg.value }}</title>
+            </circle>
+            {% endif %}
+            {% endfor %}
+          </g>
+          <text x="90" y="86" text-anchor="middle" class="donut-total-num">{{ donut_total }}</text>
+          <text x="90" y="106" text-anchor="middle" class="donut-total-label">Total</text>
+        </svg>
+        <div class="legend legend-center">
+          {% for seg in donut_segments %}
+          <div class="legend-row"><span class="dot" style="background:{{ seg.color }};"></span> {{ seg.label }} — {{ seg.value }}</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      {% if is_staff %}
+      <div class="card-title">My Tasks by Priority</div>
+      {% if my_priority_total == 0 %}
+      <div class="empty-mini" style="margin-top:12px; display:flex; flex-direction:column; align-items:center; gap:8px; padding:28px 0; text-align:center;">
+        <span style="color:var(--green); opacity:0.8;">{{ icons.icon('check', 26) }}</span>
+        <span>No tasks assigned to you yet.</span>
+      </div>
+      {% else %}
+      <div class="staff-bars" style="margin-top:14px;">
+        {% for pr in my_priority %}
+        <div class="staff-row">
+          <span class="staff-name"><span class="dot" style="background:{{ pr.color }};"></span>{{ pr.label }}</span>
+          <div class="staff-track"><div class="staff-fill" style="width:{{ ((pr.value / pr.max) * 100) | round(1) }}%; background:{{ pr.color }};"></div></div>
+          <span class="staff-pr-count mono" style="color:{{ pr.color }};">{{ pr.value }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="staff-panel-centered">
+        <div class="card-title">{{ t.perStaff }}</div>
+        <div class="staff-bars" style="margin-top:14px;">
+          {% for s in by_staff %}
+          <div class="staff-stack-row">
+            <span class="staff-name">{{ s.name }}</span>
+            <div class="staff-stack-track">
+              {% for seg in s.segments %}
+              {% if seg.value > 0 %}
+              <div class="staff-stack-seg" style="width:{{ ((seg.value / max_staff_total) * 100) | round(1) }}%; background:{{ seg.color }};" title="{{ seg.label }}: {{ seg.value }}"></div>
+              {% endif %}
+              {% endfor %}
+            </div>
+            <span class="muted">{{ s.total }}</span>
+          </div>
+          {% else %}
+          <div class="empty-mini">No staff match this filter.</div>
+          {% endfor %}
+        </div>
+        <div class="legend" style="margin-top:10px;">
+          {% for label, color in status_categories %}
+          <div class="legend-row"><span class="dot" style="background:{{ color }};"></span> {{ label }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">{{ t.recentActivity }}</div>
+    <div class="activity-list">
+      {% for a in activity %}
+      {% set href = activity_url(a) %}
+      {% set icon_svg %}
+        {% if a.icon == 'alert' %}{{ icons.icon('alert', 13) }}{% endif %}
+        {% if a.icon == 'done' %}{{ icons.icon('check', 13) }}{% endif %}
+        {% if a.icon == 'import' %}{{ icons.icon('import', 13) }}{% endif %}
+        {% if a.icon == 'delete' %}{{ icons.icon('trash', 13) }}{% endif %}
+        {% if a.icon == 'team' %}{{ icons.icon('team', 13) }}{% endif %}
+        {% if a.icon == 'clock' %}{{ icons.icon('clock', 13) }}{% endif %}
+        {% if a.icon == 'bell' %}{{ icons.icon('bell', 13) }}{% endif %}
+        {% if a.icon == 'comment' %}{{ icons.icon('comment', 13) }}{% endif %}
+        {% if a.icon == 'folder' %}{{ icons.icon('folder', 13) }}{% endif %}
+      {% endset %}
+      {% if href %}
+      <a href="{{ href }}" class="activity-row activity-row-link">
+        <span class="act-icon act-{{ a.icon }}">{{ icon_svg }}</span>
+        <span class="act-text">{{ a.text }}</span>
+        <span class="act-time mono">{{ a.time }}</span>
+      </a>
+      {% else %}
+      <div class="activity-row">
+        <span class="act-icon act-{{ a.icon }}">{{ icon_svg }}</span>
+        <span class="act-text">{{ a.text }}</span>
+        <span class="act-time mono">{{ a.time }}</span>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="empty-mini">No recent activity yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
