@@ -1,0 +1,106 @@
+{% import "_icons.html" as icons %}
+<div class="modal-backdrop">
+  <div class="modal">
+    <form method="post" action="{{ url_for('tasks.new_task') }}">
+      <input type="hidden" name="redirect_to" value="{{ redirect_to }}">
+      <div class="modal-head">
+        <span>New task</span>
+        <a class="icon-btn" href="{{ close_url }}">{{ icons.icon('x', 16) }}</a>
+      </div>
+      <div class="modal-body">
+        <label>Title<input name="title" placeholder="e.g. Reconcile appraisal figures" required></label>
+        <label>Project
+          <div class="combo" id="nt-project-combo">
+            <input type="text" class="combo-input" id="nt-project-search" autocomplete="off" placeholder="Search projects…"
+                   value="{{ (PROJECTS | selectattr('id', 'equalto', default_project_id) | map(attribute='name') | first) or (PROJECTS | map(attribute='name') | first | default('')) }}">
+            <input type="hidden" name="projectId" id="nt-project" value="{{ default_project_id or (PROJECTS | map(attribute='id') | first | default('')) }}">
+            <div class="combo-list" id="nt-project-list">
+              {% for p in PROJECTS %}
+              <div class="combo-option" data-value="{{ p.id }}" data-label="{{ p.name }}">{{ p.name }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </label>
+        <div class="modal-grid2">
+          <label>Assignee
+            <select name="assignee">{% for s in ASSIGNEES %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select>
+          </label>
+          <label>Priority
+            <select name="priority">{% for k, v in PRIORITY_META.items() %}<option value="{{ k }}" {{ 'selected' if k == 'medium' else '' }}>{{ v.label }}</option>{% endfor %}</select>
+          </label>
+        </div>
+        <div class="modal-grid2">
+          <label>Due date<input type="date" name="dueDate" value="2026-08-10"></label>
+          <label>Type<input name="type" value="Review"></label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <a class="btn btn-ghost" href="{{ close_url }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Create task</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var projInput = document.getElementById('nt-project');
+
+  // Searchable project combobox: text input filters the list; picking an
+  // option sets the hidden projectId input that the form actually submits.
+  var combo = document.getElementById('nt-project-combo');
+  var search = document.getElementById('nt-project-search');
+  var list = document.getElementById('nt-project-list');
+  if (combo && search && list && projInput) {
+    var options = Array.prototype.slice.call(list.querySelectorAll('.combo-option'));
+
+    function open() { combo.classList.add('open'); }
+    function close() { combo.classList.remove('open'); }
+
+    function filter() {
+      var q = search.value.trim().toLowerCase();
+      var anyVisible = false;
+      options.forEach(function (o) {
+        var match = o.getAttribute('data-label').toLowerCase().indexOf(q) !== -1;
+        o.style.display = match ? '' : 'none';
+        if (match) anyVisible = true;
+      });
+      var empty = list.querySelector('.combo-empty');
+      if (!anyVisible) {
+        if (!empty) {
+          empty = document.createElement('div');
+          empty.className = 'combo-empty';
+          empty.textContent = 'No matching projects';
+          list.appendChild(empty);
+        }
+      } else if (empty) {
+        empty.remove();
+      }
+    }
+
+    function select(opt) {
+      projInput.value = opt.getAttribute('data-value');
+      search.value = opt.getAttribute('data-label');
+      options.forEach(function (o) { o.classList.toggle('selected', o === opt); });
+      close();
+    }
+
+    search.addEventListener('focus', function () { search.select(); open(); filter(); });
+    search.addEventListener('input', function () { open(); filter(); });
+    list.addEventListener('click', function (e) {
+      var opt = e.target.closest('.combo-option');
+      if (opt) select(opt);
+    });
+    document.addEventListener('click', function (e) {
+      if (!combo.contains(e.target)) close();
+    });
+    search.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { close(); search.blur(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var visible = options.filter(function (o) { return o.style.display !== 'none'; });
+        if (visible.length === 1) select(visible[0]);
+      }
+    });
+  }
+})();
+</script>

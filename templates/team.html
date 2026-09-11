@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="view">
+  <div class="view-head"><h1>Team</h1><p class="muted">Team performance, individual workload, and task distribution.</p></div>
+  <div class="team-grid">
+    {% for c in cards %}
+    <div class="card team-card">
+      <div class="team-head">
+        <span class="avatar" style="width:40px;height:40px;font-size:16px;">{{ c.name | initials }}</span>
+        <div>
+          <div class="team-name">{{ c.name }} <span class="badge team-role-badge">{{ c.role }}</span></div>
+          <div class="muted small">{{ c.total }} total tasks</div>
+        </div>
+      </div>
+      <div class="team-stats">
+        <div><span class="mono">{{ c.active }}</span><span class="muted small">Active</span></div>
+        <div><span class="mono">{{ c.done }}</span><span class="muted small">Done</span></div>
+        <div><span class="mono text-red">{{ c.overdue }}</span><span class="muted small">Overdue</span></div>
+      </div>
+      <div class="team-tasklist">
+        {% for r in c.recent %}
+        <div class="team-task-row">
+          <span class="dot" style="background:{{ r.project.color }};"></span>
+          <span class="small">{{ r.task.title }}</span>
+          <span class="badge {{ STATUS_META[r.task.status].cls }}">{{ STATUS_META[r.task.status].label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

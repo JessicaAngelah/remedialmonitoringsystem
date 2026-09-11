@@ -1,0 +1,29 @@
+{% import "_icons.html" as icons %}
+<div class="modal-backdrop">
+  <div class="modal">
+    <form method="post" action="{{ url_for('tasks.import_tasks') }}" enctype="multipart/form-data">
+      <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+      <div class="modal-head">
+        <span>Import tasks from Excel</span>
+        <a class="icon-btn" href="{{ close_url }}">{{ icons.icon('x', 16) }}</a>
+      </div>
+      <div class="modal-body">
+        <p class="muted small" style="margin:0 0 4px;">
+          Upload an .xlsx or .csv file with one task per row. The header row needs a
+          <strong>Title</strong> and <strong>Project</strong> column (project name or code) — everything
+          else is optional.
+        </p>
+        <p class="muted small" style="margin:0 0 10px;">
+          Recognized columns: Title, Project, Assignee, Priority ({{ PRIORITY_META.keys()|join(', ') }}),
+          Status ({{ STATUS_META.keys()|join(', ') }}), Start Date, Due Date, Type, Notes.
+        </p>
+        <label>File<input type="file" name="file" accept=".xlsx,.csv" required></label>
+        <a class="link-back" style="margin-top:2px; display:inline-flex; align-items:center; gap:5px;" href="{{ url_for('tasks.download_import_template') }}">{{ icons.icon('download', 13) }} Download a blank template</a>
+      </div>
+      <div class="modal-foot">
+        <a class="btn btn-ghost" href="{{ close_url }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{{ icons.icon('upload', 15) }} Import</button>
+      </div>
+    </form>
+  </div>
+</div>

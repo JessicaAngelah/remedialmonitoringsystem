@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head">
+    <h1>{{ t.history }}</h1>
+    <p class="muted">
+      {% if is_own %}Your activity across your assigned projects and tasks.
+      {% else %}Full activity log across all remediation projects.{% endif %}
+    </p>
+  </div>
+
+  <form class="toolbar" method="get" action="{{ url_for('history.history_view') }}">
+    <select name="project" onchange="this.form.submit()">
+      <option value="all" {{ 'selected' if f_project == 'all' else '' }}>All projects</option>
+      {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if f_project == p.id else '' }}>{{ p.name }}</option>{% endfor %}
+    </select>
+  </form>
+
+  <div class="card">
+    <div class="activity-list">
+      {% for r in rows %}
+      {% set href = activity_url(r.entry) %}
+      {% set icon_svg %}
+        {% if r.entry.icon == 'alert' %}{{ icons.icon('alert', 13) }}{% endif %}
+        {% if r.entry.icon == 'done' %}{{ icons.icon('check', 13) }}{% endif %}
+        {% if r.entry.icon == 'import' %}{{ icons.icon('import', 13) }}{% endif %}
+        {% if r.entry.icon == 'delete' %}{{ icons.icon('trash', 13) }}{% endif %}
+        {% if r.entry.icon == 'team' %}{{ icons.icon('team', 13) }}{% endif %}
+        {% if r.entry.icon == 'clock' %}{{ icons.icon('clock', 13) }}{% endif %}
+        {% if r.entry.icon == 'bell' %}{{ icons.icon('bell', 13) }}{% endif %}
+        {% if r.entry.icon == 'comment' %}{{ icons.icon('comment', 13) }}{% endif %}
+        {% if r.entry.icon == 'folder' %}{{ icons.icon('folder', 13) }}{% endif %}
+      {% endset %}
+      {% set body %}
+        <span class="act-icon act-{{ r.entry.icon }}">{{ icon_svg }}</span>
+        <span class="act-text">
+          {{ r.entry.text }}
+          {% if r.project %}<span class="muted small"> · {{ r.project.name }}</span>{% endif %}
+        </span>
+        <span class="act-time mono">{{ r.entry.time }}</span>
+      {% endset %}
+      {% if href %}
+      <a href="{{ href }}" class="activity-row activity-row-link">{{ body }}</a>
+      {% else %}
+      <div class="activity-row">{{ body }}</div>
+      {% endif %}
+      {% else %}
+      <div class="empty-mini">No history to show yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

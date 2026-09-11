@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in · Team Remedial</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="rms">
+    <div class="login-page">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="brand-badge">MR</div>
+          <div class="brand-text">
+            <div class="brand-name">Team Remedial</div>
+            <div class="brand-sub">Monitoring System</div>
+          </div>
+        </div>
+        <h1 style="margin-top:18px; margin-bottom:18px;">Sign in</h1>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+          <div class="login-alert">{{ messages[0] }}</div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" class="login-form">
+          <label>Username
+            <input type="text" name="username" autofocus autocomplete="username" required>
+          </label>
+          <label>Password
+            <input type="password" name="password" autocomplete="current-password" required>
+          </label>
+          <button class="btn btn-primary" type="submit" style="justify-content:center; margin-top:6px;">Sign in</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

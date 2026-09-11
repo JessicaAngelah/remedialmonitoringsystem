@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block content %}
+<div class="view">
+  <div class="view-head row-between">
+    <div>
+      <h1>Projects</h1>
+      <p class="muted">Pick a folder to see its projects and tasks.</p>
+    </div>
+    {% if can_manage %}
+    <div class="row-gap">
+      <a class="btn btn-ghost" href="{{ url_for('projects.projects_list', modal='import') }}">{{ icons.icon('upload', 15) }} Import Excel</a>
+      <a class="btn btn-ghost" href="{{ url_for('projects.projects_list', modal='new-folder') }}">{{ icons.icon('folder', 15) }} New folder</a>
+      <a class="btn btn-primary" href="{{ url_for('projects.projects_list', modal='new-project') }}">{{ icons.icon('plus', 15) }} New project</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <form class="toolbar" method="get" action="{{ url_for('projects.projects_list') }}">
+    <div class="search-box">
+      {{ icons.icon('search', 15) }}
+      <input type="text" name="q" placeholder="Search folders by project name, code, or category" value="{{ q }}">
+    </div>
+    <button type="submit" class="btn btn-ghost">Search</button>
+    <div class="layout-toggle">
+      <a class="{{ 'active' if f_scope == 'mine' else '' }}" href="{{ url_for('projects.projects_list', q=q, scope='mine') }}">My projects</a>
+      <a class="{{ 'active' if f_scope == 'all' else '' }}" href="{{ url_for('projects.projects_list', q=q, scope='all') }}">All projects</a>
+    </div>
+  </form>
+
+  <div class="folder-card-grid">
+    {% for fc in folder_cards %}
+    <div class="folder-card {{ 'folder-card-has-menu' if can_manage else '' }}" style="--folder-color: {{ fc.color }};">
+      {% if can_manage %}
+      <div class="folder-card-menu">
+        <button type="button" class="folder-menu-btn" data-menu-toggle aria-label="Folder options">{{ icons.icon('more-horizontal', 16) }}</button>
+        <div class="folder-menu-dropdown" data-menu-dropdown>
+          <a class="folder-menu-item" href="{{ url_for('projects.projects_list', modal='edit-folder', folder=fc.key, q=q, scope=f_scope) }}">{{ icons.icon('edit', 13) }} Rename</a>
+          <div class="folder-menu-swatches">
+            <span class="folder-menu-swatches-label">Color</span>
+            <div class="folder-menu-swatch-row">
+              {% for c in ["#004BFF", "#FF003C", "#D6C100", "#00FFA6"] %}
+              <form method="post" action="{{ url_for('projects.recolor_folder', folder_id=fc.key) }}">
+                <input type="hidden" name="color" value="{{ c }}">
+                <button type="submit" class="folder-menu-swatch {{ 'active' if fc.color == c else '' }}" style="background:{{ c }};" aria-label="Set color {{ c }}"></button>
+              </form>
+              {% endfor %}
+            </div>
+          </div>
+          {% if fc.custom %}
+          <form method="post" action="{{ url_for('projects.duplicate_folder', folder_id=fc.key) }}">
+            <button type="submit" class="folder-menu-item">{{ icons.icon('copy', 13) }} Duplicate</button>
+          </form>
+          <form method="post" action="{{ url_for('projects.empty_folder', folder_id=fc.key) }}" onsubmit="return confirm('Move all {{ fc.projects }} project{{ 's' if fc.projects != 1 else '' }} out of \'{{ fc.label }}\' to Manually added? The folder itself will stay, just empty.');">
+            <button type="submit" class="folder-menu-item">{{ icons.icon('log-out', 13) }} Move projects out</button>
+          </form>
+          <form method="post" action="{{ url_for('projects.delete_folder', folder_id=fc.key) }}" onsubmit="return confirm('Delete the folder \'{{ fc.label }}\'? Its {{ fc.projects }} project{{ 's' if fc.projects != 1 else '' }} will move to Manually added, not be deleted.');">
+            <button type="submit" class="folder-menu-item folder-menu-item-danger">{{ icons.icon('trash', 13) }} Delete</button>
+          </form>
+          {% else %}
+          <form method="post" action="{{ url_for('projects.delete_folder', folder_id=fc.key) }}" onsubmit="return confirm('Permanently delete all {{ fc.projects }} project{{ 's' if fc.projects != 1 else '' }} and every task inside \'{{ fc.label }}\'? This cannot be undone. The \'{{ fc.label }}\' category itself will stay, just empty.');">
+            <button type="submit" class="folder-menu-item folder-menu-item-danger">{{ icons.icon('trash', 13) }} Delete all contents</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+      <a class="folder-card-link" href="{{ url_for('projects.folder_detail', folder_key=fc.key, q=q, scope=f_scope) }}">
+        <div class="folder-card-head">
+          <span class="folder-icon-badge">{{ icons.icon('folder', 18) }}</span>
+          <span class="folder-card-name">{{ fc.label }}</span>
+          <span class="folder-pct-pill">{{ fc.pct }}%</span>
+        </div>
+        <div class="folder-card-meta">{{ icons.icon('calendar', 13) }} {{ fc.total }} tasks &middot; {{ fc.done }} done</div>
+        <div class="pbar-track"><div class="pbar-fill" style="width:{{ fc.pct }}%; background:var(--folder-color);"></div></div>
+        <div class="folder-card-foot">
+          <span>{{ fc.projects }} project{{ 's' if fc.projects != 1 else '' }}</span>
+          {{ icons.icon('chevron-right', 15) }}
+        </div>
+      </a>
+      {% if fc.import_id %}
+      <a class="folder-view-btn" href="{{ url_for('projects.view_import', import_id=fc.import_id) }}">{{ icons.icon('eye', 13) }} View excel</a>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="empty-mini">No folders yet — import an Excel or add a folder to get started.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('[data-menu-toggle]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var dropdown = btn.nextElementSibling;
+      var wasOpen = dropdown.classList.contains('open');
+      document.querySelectorAll('.folder-menu-dropdown.open').forEach(function (d) { d.classList.remove('open'); });
+      if (!wasOpen) dropdown.classList.add('open');
+    });
+  });
+  document.addEventListener('click', function () {
+    document.querySelectorAll('.folder-menu-dropdown.open').forEach(function (d) { d.classList.remove('open'); });
+  });
+})();
+</script>
+
+{% if modal == 'new-project' %}
+  {% with close_url = url_for('projects.projects_list') %}
+    {% include "_new_project_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% if modal == 'import' %}
+  {% with close_url = url_for('projects.projects_list') %}
+    {% include "_import_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% if modal == 'new-folder' %}
+  {% with close_url = url_for('projects.projects_list') %}
+    {% include "_new_folder_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% if modal == 'edit-folder' and edit_folder %}
+  {% with close_url = url_for('projects.projects_list', q=q, scope=f_scope) %}
+    {% include "_edit_folder_modal.html" %}
+  {% endwith %}
+{% endif %}
+{% endblock %}

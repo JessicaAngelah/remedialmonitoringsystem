@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Team Remedial · Monitoring System</title>
+  <link rel="stylesheet" href="{{ static_v('style.css') }}" />
+</head>
+{% import "_icons.html" as icons %}
+<body>
+  <div class="rms {{ 'dark' if dark else '' }} {{ 'fixed-screen' if fixed_screen else '' }}">
+    <div class="shell">
+      <aside class="sidebar {{ 'collapsed' if collapsed else '' }}">
+        <div class="brand">
+          <div class="brand-badge">MR</div>
+          <div class="brand-text">
+            <div class="brand-name">Team Remedial</div>
+            <div class="brand-sub">Monitoring System</div>
+          </div>
+          <form method="post" action="{{ url_for('core.toggle_sidebar') }}">
+            <button class="sidebar-toggle" type="submit" title="{{ 'Expand sidebar' if collapsed else 'Minimize sidebar' }}">
+              <span style="display:flex; transform: {{ 'rotate(180deg)' if collapsed else 'none' }};">{{ icons.icon('chevron-left', 15) }}</span>
+            </button>
+          </form>
+        </div>
+
+        <nav class="nav">
+          {% for key, label_key, ic, endpoint in NAV %}
+          <a class="nav-item {{ 'active' if view == key else '' }}" href="{{ url_for(endpoint) }}">
+            {{ icons.icon(ic, 17) }}
+            <span>{{ t[label_key] }}</span>
+          </a>
+          {% endfor %}
+          {% if can_admin %}
+          <a class="nav-item {{ 'active' if view == 'admin' else '' }}" href="{{ url_for('admin.admin_view') }}">
+            {{ icons.icon('shield', 17) }}
+            <span>{{ t.admin }}</span>
+          </a>
+          {% endif %}
+        </nav>
+
+        <div class="sidebar-foot">
+          <form method="post" action="{{ url_for('core.toggle_lang') }}">
+            <button class="foot-toggle" type="submit">
+              {{ icons.icon('languages', 15) }}
+              <span>{{ 'Bahasa Indonesia' if lang == 'en' else 'English' }}</span>
+            </button>
+          </form>
+          <form method="post" action="{{ url_for('core.toggle_dark') }}">
+            <button class="foot-toggle" type="submit">
+              {{ icons.icon('sun' if dark else 'moon', 15) }}
+              <span>Dark Mode</span>
+              <span class="switch {{ 'on' if dark else '' }}"><span class="knob"></span></span>
+            </button>
+          </form>
+          <div class="user-chip">
+            <div class="avatar" style="width:26px;height:26px;font-size:10.4px;">{{ staff_name | initials }}</div>
+            <div>
+              <div class="user-role">{{ staff_name }}</div>
+              <div class="user-hint">{{ role }}</div>
+            </div>
+            <form method="post" action="{{ url_for('auth.logout') }}" style="margin-left:auto;">
+              <button class="icon-btn" type="submit" title="Sign out">{{ icons.icon('log-out', 15) }}</button>
+            </form>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <details class="notif">
+            <summary class="notif-bell" aria-label="{{ t.notifications }}">
+              {{ icons.icon('bell', 18) }}
+              {% if unread_count > 0 %}<span class="notif-badge">{{ unread_count }}</span>{% endif %}
+            </summary>
+            <div class="notif-panel">
+              <div class="notif-panel-head">
+                <span>{{ t.notifications }}</span>
+                {% if unread_count > 0 %}
+                <form method="post" action="{{ url_for('core.mark_all_notifications_read') }}">
+                  <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+                  <button type="submit">{{ t.markAllRead }}</button>
+                </form>
+                {% endif %}
+              </div>
+              <div class="notif-list">
+                {% for n in notifications %}
+                <form method="post" action="{{ url_for('core.mark_notification_read', nid=n.id) }}" class="notif-item-form">
+                  <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+                  <button type="submit" class="notif-item {{ '' if n.read else 'unread' }}">
+                    <span class="act-icon act-{{ n.icon }}">
+                      {% if n.icon == 'alert' %}{{ icons.icon('alert', 13) }}{% endif %}
+                      {% if n.icon == 'clock' %}{{ icons.icon('clock', 13) }}{% endif %}
+                      {% if n.icon == 'done' %}{{ icons.icon('check', 13) }}{% endif %}
+                      {% if n.icon == 'import' %}{{ icons.icon('import', 13) }}{% endif %}
+                      {% if n.icon == 'team' %}{{ icons.icon('team', 13) }}{% endif %}
+                    </span>
+                    <span class="notif-text">
+                      <span class="notif-title">{{ n.text }}</span>
+                      <span class="notif-time mono">{{ n.time }}</span>
+                    </span>
+                    {% if not n.read %}<span class="notif-dot"></span>{% endif %}
+                  </button>
+                </form>
+                {% else %}
+                <div class="empty-mini">{{ t.noNotifications }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </details>
+        </div>
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="toast">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+  </div>
+</body>
+</html>

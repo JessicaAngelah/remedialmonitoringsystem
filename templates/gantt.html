@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="view">
+  <div class="view-head"><h1>Gantt Chart</h1><p class="muted">{{ range_start.strftime('%d %b %Y') }} – {{ range_end.strftime('%d %b %Y') }} · drag or scroll the chart to browse other months.</p></div>
+
+  <form class="toolbar" method="get" action="{{ url_for('gantt.gantt_view') }}">
+    <select name="project" onchange="this.form.submit()">
+      <option value="all" {{ 'selected' if f_project == 'all' else '' }}>All projects</option>
+      {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if f_project == p.id else '' }}>{{ p.name }}</option>{% endfor %}
+    </select>
+    <div class="gantt-nav">
+      <button type="button" class="btn btn-ghost gantt-nav-btn" id="ganttPrev" title="Scroll back a month">‹</button>
+      <button type="button" class="btn btn-ghost gantt-nav-btn" id="ganttToday" title="Jump to today">Today</button>
+      <button type="button" class="btn btn-ghost gantt-nav-btn" id="ganttNext" title="Scroll forward a month">›</button>
+    </div>
+  </form>
+
+  <div class="card gantt-card">
+    <div class="gantt-scroll" id="ganttScroll">
+      <div class="gantt-grid" style="width: calc(var(--gantt-label-w) + var(--gantt-gap) + {{ track_width }}px); grid-template-columns: var(--gantt-label-w) {{ track_width }}px;">
+
+        <!-- Today marker: spans every row (grid line 1 to the last), so the pole runs
+             the whole chart height. It's placed in its own dedicated flag row (row 1)
+             so it never overlaps the month/date label text below it. -->
+        <div class="gantt-today-col" style="grid-column: 2; grid-row: 1 / -1;">
+          <div class="gantt-today-line" style="left:{{ today_pct }}%;"><span>Today</span></div>
+        </div>
+
+        <!-- Row 1: reserved flag lane (kept clear so "Today" never overlaps other text) -->
+        <div class="gantt-cell-empty gantt-flag-row" style="grid-column:1; grid-row:1;"></div>
+        <div class="gantt-cell-empty gantt-flag-row" style="grid-column:2; grid-row:1;"></div>
+
+        <!-- Row 2: month bands -->
+        <div class="gantt-cell-empty" style="grid-column:1; grid-row:2;"></div>
+        <div class="gantt-months" style="grid-column:2; grid-row:2;">
+          {% for mo in months %}
+          <div class="gantt-month {{ 'alt' if loop.index0 % 2 == 1 else '' }}" style="left:{{ mo.left }}%; width:{{ mo.width }}%;">
+            <span>{{ mo.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Row 3: week-tick date scale -->
+        <div class="gantt-cell-empty" style="grid-column:1; grid-row:3;"></div>
+        <div class="gantt-scale mono" style="grid-column:2; grid-row:3;">
+          {% for tick in ticks %}
+          <span class="gantt-tick" style="left:{{ tick.left }}%;">{{ tick.label }}</span>
+          {% endfor %}
+        </div>
+
+        <!-- Rows 4+: tasks -->
+        {% for r in rows %}
+        <div class="gantt-label" style="grid-column:1; grid-row:{{ loop.index + 3 }};">
+          <span class="dot" style="background:{{ r.project.color }};"></span>
+          {{ r.title }}
+        </div>
+        <div class="gantt-track" style="grid-column:2; grid-row:{{ loop.index + 3 }};">
+          <div class="gantt-bar {{ 'gantt-done' if r.done else '' }}"
+               style="left:{{ r.left }}%; width:{{ r.width }}%; background:{{ r.project.color }};"
+               title="{{ r.title }} · {{ r.start.strftime('%d %b %Y') }} – {{ r.end.strftime('%d %b %Y') }}"></div>
+        </div>
+        {% else %}
+        <div class="empty-mini" style="grid-column: 1 / -1; grid-row: 4;">No tasks for this project yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var scroller = document.getElementById('ganttScroll');
+  var todayLeftPx = {{ today_left_px }};
+  var totalDays = {{ (range_end - range_start).days }};
+  var dayWidth = {{ track_width }} / (totalDays || 1);
+
+  function centerOnToday() {
+    var target = todayLeftPx - (scroller.clientWidth / 2) + 170; // account for the sticky label column
+    scroller.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+  }
+  centerOnToday(); // land on today by default
+
+  document.getElementById('ganttToday').addEventListener('click', centerOnToday);
+  document.getElementById('ganttPrev').addEventListener('click', function () {
+    scroller.scrollBy({ left: -dayWidth * 30, behavior: 'smooth' });
+  });
+  document.getElementById('ganttNext').addEventListener('click', function () {
+    scroller.scrollBy({ left: dayWidth * 30, behavior: 'smooth' });
+  });
+
+  // Drag-to-scroll with the mouse, in addition to native trackpad/scrollbar scrolling.
+  var isDown = false, startX, startScroll;
+  scroller.addEventListener('mousedown', function (e) {
+    isDown = true;
+    scroller.classList.add('dragging');
+    startX = e.pageX;
+    startScroll = scroller.scrollLeft;
+  });
+  window.addEventListener('mouseup', function () { isDown = false; scroller.classList.remove('dragging'); });
+  window.addEventListener('mousemove', function (e) {
+    if (!isDown) return;
+    e.preventDefault();
+    scroller.scrollLeft = startScroll - (e.pageX - startX);
+  });
+})();
+</script>
+{% endblock %}

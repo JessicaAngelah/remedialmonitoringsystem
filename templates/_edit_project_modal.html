@@ -1,0 +1,190 @@
+{% import "_icons.html" as icons %}
+<div class="modal-backdrop">
+  <div class="modal">
+    <form method="post" action="{{ url_for('projects.edit_project', pid=project.id) }}">
+      <div class="modal-head">
+        <span>{{ t.pm.editProject }}</span>
+        <a class="icon-btn" href="{{ close_url }}">{{ icons.icon('x', 16) }}</a>
+      </div>
+      <div class="modal-body">
+        <label>{{ t.pm.projectName }}<input name="name" value="{{ project.name }}" required></label>
+        <div class="modal-grid2">
+          <label>{{ t.pm.code }}<input name="code" value="{{ project.code }}" style="text-transform:uppercase;" required></label>
+          <label>{{ t.pm.category }}<input name="category" value="{{ project.category }}"></label>
+        </div>
+        <label>{{ t.pm.folder }}
+          <select name="folder">
+            <option value="manual" {{ 'selected' if project.origin == 'manual' or not project.origin else '' }}>{{ BUILTIN_FOLDERS.manual.name }}</option>
+            <option value="master" {{ 'selected' if project.origin == 'master' else '' }}>{{ BUILTIN_FOLDERS.master.name }}</option>
+            <option value="weekly" {{ 'selected' if project.origin == 'weekly' else '' }}>{{ BUILTIN_FOLDERS.weekly.name }}</option>
+            {% for f in CUSTOM_FOLDERS %}
+            <option value="{{ f.id }}" {{ 'selected' if project.origin == f.id else '' }}>{{ f.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>{{ t.pm.accentColor }}</label>
+        <div class="color-row">
+          {% for c in ["#FF003C", "#D6C100", "#004BFF", "#00FFA6"] %}
+          <label class="swatch" style="background:{{ c }}; display:inline-flex;">
+            <input type="radio" name="color" value="{{ c }}" {{ 'checked' if project.color == c else '' }} style="opacity:0; width:100%; height:100%; margin:0; cursor:pointer;">
+          </label>
+          {% endfor %}
+        </div>
+
+        {% if project.debtor %}
+        <div class="modal-subhead">{{ t.pm.caseDetails }}</div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.pic }}<input name="pic" value="{{ project.pic or '' }}"></label>
+          <label>{{ t.pm.collector }}<input name="collector" value="{{ project.collector or '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.status }}
+            <select name="npl_status">
+              <option value="">{{ t.pm.chooseOption }}</option>
+              {% for opt in STATUS_OPTIONS %}<option value="{{ opt }}" {{ 'selected' if project.npl_status == opt else '' }}>{{ opt }}</option>{% endfor %}
+              {% if project.npl_status and project.npl_status not in STATUS_OPTIONS %}
+              <option value="{{ project.npl_status }}" selected>{{ project.npl_status }}</option>
+              {% endif %}
+            </select>
+          </label>
+          <label>{{ t.pm.urgency }}
+            <select name="urgency">
+              <option value="">{{ t.pm.chooseOption }}</option>
+              {% for opt in URGENCY_OPTIONS %}<option value="{{ opt }}" {{ 'selected' if project.urgency == opt else '' }}>{{ opt }}</option>{% endfor %}
+              {% if project.urgency and project.urgency not in URGENCY_OPTIONS %}
+              <option value="{{ project.urgency }}" selected>{{ project.urgency }}</option>
+              {% endif %}
+            </select>
+          </label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.tipe }}
+            <select name="tipe">
+              <option value="">{{ t.pm.chooseOption }}</option>
+              {% for opt in TIPE_OPTIONS %}<option value="{{ opt }}" {{ 'selected' if project.tipe == opt else '' }}>{{ opt }}</option>{% endfor %}
+              {% if project.tipe and project.tipe not in TIPE_OPTIONS %}
+              <option value="{{ project.tipe }}" selected>{{ project.tipe }}</option>
+              {% endif %}
+            </select>
+          </label>
+          <label>{{ t.pm.surveyor }}
+            <input name="surveyor" list="surveyor-list" value="{{ project.surveyor or '' }}" placeholder="{{ t.pm.surveyorPlaceholder }}">
+            <datalist id="surveyor-list">{% for s in SURVEYORS %}<option value="{{ s }}">{% endfor %}</datalist>
+          </label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.objektif }}
+            <select name="objektif">
+              <option value="">{{ t.pm.chooseOption }}</option>
+              {% for opt in OBJEKTIF_OPTIONS %}<option value="{{ opt }}" {{ 'selected' if project.objektif == opt else '' }}>{{ opt }}</option>{% endfor %}
+              {% if project.objektif and project.objektif not in OBJEKTIF_OPTIONS %}
+              <option value="{{ project.objektif }}" selected>{{ project.objektif }}</option>
+              {% endif %}
+            </select>
+          </label>
+          <label>{{ t.pm.meetingStatus }}
+            <select name="meeting_status">
+              <option value="">{{ t.pm.chooseOption }}</option>
+              {% for opt in MEETING_STATUS_OPTIONS %}<option value="{{ opt }}" {{ 'selected' if project.meeting_status == opt else '' }}>{{ opt }}</option>{% endfor %}
+              {% if project.meeting_status and project.meeting_status not in MEETING_STATUS_OPTIONS %}
+              <option value="{{ project.meeting_status }}" selected>{{ project.meeting_status }}</option>
+              {% endif %}
+            </select>
+          </label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.critical }}
+            <select name="critical">
+              <option value="">{{ t.pm.chooseOption }}</option>
+              {% for opt in CRITICAL_OPTIONS %}<option value="{{ opt }}" {{ 'selected' if project.critical == opt else '' }}>{{ opt }}</option>{% endfor %}
+              {% if project.critical and project.critical not in CRITICAL_OPTIONS %}
+              <option value="{{ project.critical }}" selected>{{ project.critical }}</option>
+              {% endif %}
+            </select>
+          </label>
+          <label>{{ t.pm.rating }}
+            <select name="rating">
+              <option value="">{{ t.pm.chooseOption }}</option>
+              {% for opt in RATING_OPTIONS %}<option value="{{ opt }}" {{ 'selected' if project.rating == opt else '' }}>{{ opt }}</option>{% endfor %}
+              {% if project.rating and project.rating not in RATING_OPTIONS %}
+              <option value="{{ project.rating }}" selected>{{ project.rating }}</option>
+              {% endif %}
+            </select>
+          </label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.contactable }}<input name="contactable" value="{{ project.contactable or '' }}"></label>
+          <label>{{ t.pm.loanType }}<input name="loan_type" value="{{ project.loan_type or '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.source }}<input name="source" value="{{ project.source or '' }}"></label>
+          <label>{{ t.pm.jaminan }}<input name="jaminan" value="{{ project.jaminan or '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.pokok }}<input type="number" step="any" name="pokok" value="{{ project.pokok if project.pokok is not none else '' }}"></label>
+          <label>{{ t.pm.totalTagihan }}<input type="number" step="any" name="total_tagihan" value="{{ project.total_tagihan if project.total_tagihan is not none else '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.collected2025 }}<input type="number" step="any" name="collected_2025" value="{{ project.collected_2025 if project.collected_2025 is not none else '' }}"></label>
+          <label>{{ t.pm.collected2026 }}<input type="number" step="any" name="collected_2026" value="{{ project.collected_2026 if project.collected_2026 is not none else '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.lvAgunan }}<input type="number" step="any" name="lv_agunan" value="{{ project.lv_agunan if project.lv_agunan is not none else '' }}"></label>
+          <label>{{ t.pm.mvAgunan }}<input type="number" step="any" name="mv_agunan" value="{{ project.mv_agunan if project.mv_agunan is not none else '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.dpd }}<input type="number" name="dpd" value="{{ project.dpd if project.dpd is not none else '' }}"></label>
+          <label>{{ t.pm.dueDate }}<input type="date" name="due_date" value="{{ project.due_date or '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.woStage }}<input name="wo_stage" value="{{ project.wo_stage or '' }}"></label>
+          <label>{{ t.pm.woDate }}<input type="date" name="wo_date" value="{{ project.wo_date or '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.auctionStatus }}<input name="auction_status" value="{{ project.auction_status or '' }}"></label>
+          <label>{{ t.pm.tanggalBast }}<input type="date" name="tanggal_bast" value="{{ project.tanggal_bast or '' }}"></label>
+        </div>
+        <div class="modal-grid2">
+          <label>{{ t.pm.kol }}<input name="kol" value="{{ project.coll or '' }}"></label>
+        </div>
+        <label>{{ t.pm.remark }}<textarea name="remark" rows="3">{{ project.remark or '' }}</textarea></label>
+        <label>{{ t.pm.planNextWeek }}<textarea name="plan_next_week" rows="2">{{ project.plan_next_week or '' }}</textarea></label>
+
+        <div class="modal-subhead">{{ t.pm.additionalDetails }}</div>
+        <div id="custom-detail-list">
+          {% for d in project.custom_details or [] %}
+          <div class="custom-detail-row">
+            <div class="custom-detail-fields">
+              <input name="custom_title" placeholder="{{ t.pm.detailTitle }}" value="{{ d.title }}">
+              <textarea name="custom_desc" rows="2" placeholder="{{ t.pm.detailDescription }}">{{ d.description }}</textarea>
+            </div>
+            <button type="button" class="icon-btn" title="Remove detail" onclick="this.closest('.custom-detail-row').remove()">{{ icons.icon('trash', 14) }}</button>
+          </div>
+          {% endfor %}
+        </div>
+        <button type="button" class="add-detail-btn" onclick="addCustomDetailRow()">{{ icons.icon('plus', 13) }} {{ t.pm.addDetail }}</button>
+        <template id="custom-detail-template">
+          <div class="custom-detail-row">
+            <div class="custom-detail-fields">
+              <input name="custom_title" placeholder="{{ t.pm.detailTitle }}">
+              <textarea name="custom_desc" rows="2" placeholder="{{ t.pm.detailDescription }}"></textarea>
+            </div>
+            <button type="button" class="icon-btn" title="Remove detail" onclick="this.closest('.custom-detail-row').remove()">{{ icons.icon('trash', 14) }}</button>
+          </div>
+        </template>
+        <script>
+          function addCustomDetailRow() {
+            var tpl = document.getElementById('custom-detail-template');
+            var row = tpl.content.cloneNode(true);
+            document.getElementById('custom-detail-list').appendChild(row);
+          }
+        </script>
+        {% endif %}
+      </div>
+      <div class="modal-foot">
+        <a class="btn btn-ghost" href="{{ close_url }}">{{ t.pm.cancel }}</a>
+        <button class="btn btn-primary" type="submit">{{ t.pm.saveChanges }}</button>
+      </div>
+    </form>
+  </div>
+</div>
